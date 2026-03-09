@@ -1,0 +1,72 @@
+classDiagram
+    class User {
+        +uid: string
+        +name: string
+        +email: string
+        +address: string
+        +phoneNumber: string
+        +timezone: string
+        +pets: List~Pet~
+        +tasks: List~Task~
+        +addPet(pet: Pet): void
+        +removePet(petId: string): void
+        +addTask(task: Task): bool
+        +editTask(taskId: string, updates: Map): bool
+        +deleteTask(taskId: string): bool
+        +hasTaskConflict(candidate: Task): bool
+        +getTasksByPet(petId: string): List~Task~
+    }
+
+    class Pet {
+        +uid: string
+        +name: string
+        +animal: Animal
+        +age: int
+        +birthDate: date
+        +weight: float
+        +medicalNotes: string
+        +updateInfo(name: string, animal: Animal, age: int): void
+        +calculateAge(today: date): int
+        +getUpcomingTasks(tasks: List~Task~): List~Task~
+    }
+
+    class Animal {
+        +uid: string
+        +type: string
+        +breed: string
+        +displayName(): string
+    }
+
+    class Task {
+        +uid: string
+        +name: string
+        +description: string
+        +associatedPetId: string
+        +type: string
+        +duration: int
+        +startDate: date
+        +endDate: date
+        +startTime: time
+        +endTime: time
+        +status: string
+        +priority: string
+        +reminderMinutesBefore: int
+        +isRecurring: bool
+        +recurrenceRule: string
+        +completedAt: datetime
+        +add(): void
+        +edit(updates: Map): void
+        +delete(): void
+        +markCompleted(completedAt: datetime): void
+        +isOverdue(now: datetime): bool
+        +setRecurring(rule: string): void
+        +validateTimeRange(): bool
+        +overlapsWith(other: Task): bool
+        +getStartDateTime(): datetime
+        +getEndDateTime(): datetime
+    }
+
+    User "1" --> "0..*" Pet : owns
+    User "1" --> "0..*" Task : manages
+    Pet "0..*" --> "1" Animal : animal
+    Task "0..*" --> "1" Pet : associated_pet
