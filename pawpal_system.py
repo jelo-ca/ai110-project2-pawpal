@@ -1,16 +1,25 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
-from datetime import date, time, datetime
+from datetime import date, datetime
+from typing import Dict, List
+from enum import Enum, auto
+
+
+class TaskStatus(Enum):
+    PENDING = auto()
+    COMPLETED = auto()
+
 
 
 @dataclass
-class Animal:
+class AnimalProfile:
     uid: str
-    type: str
+    species: str
     breed: str
+    lifeStage: str
+    defaultCareGuidelines: str
     
     def displayName(self) -> str:
-        """Returns formatted display name of the animal"""
+        """Returns formatted display name of the animal profile."""
         pass
 
 
@@ -18,149 +27,136 @@ class Animal:
 class Pet:
     uid: str
     name: str
-    animal: Animal
-    age: int
+    animalProfileId: str
     birthDate: date
-    weight: float
+    weightKg: float
     medicalNotes: str = ""
+    tasks: List["PetTask"] = field(default_factory=list)
     
-    def updateInfo(self, name: str, animal: Animal, age: int) -> None:
-        """Updates pet information"""
+    def updateInfo(self, name: str, weightKg: float, medicalNotes: str) -> None:
+        """Updates pet information."""
         pass
     
     def calculateAge(self, today: date) -> int:
-        """Calculates age based on birth date"""
+        """Calculates age based on birth date."""
         pass
     
-    def getUpcomingTasks(self, tasks: List['Task']) -> List['Task']:
-        """Returns upcoming tasks for this pet"""
+    def addTask(self, task: "PetTask") -> bool:
+        """Adds a task to this pet's task list."""
         pass
+
+    def updateTask(self, taskId: str, updates: Dict) -> bool:
+        """Updates a task associated with this pet."""
+        pass
+
+    def completeTask(self, taskId: str, completedAt: datetime) -> bool:
+        """Marks a task as complete for this pet."""
+        pass
+
+    def getDueTasks(self, windowStart: datetime, windowEnd: datetime) -> List["PetTask"]:
+        """Returns tasks due in the provided time window."""
+        pass
+    
+    def __repr__(self) -> str:
+        """Returns a string representation of the pet."""
+        return f"<Pet name={self.name}>"
 
 
 @dataclass
-class Task:
+class PetTask:
     uid: str
-    name: str
-    description: str
-    associatedPetId: str
-    type: str
-    duration: int
-    startDate: date
-    endDate: date
-    startTime: time
-    endTime: time
-    status: str
+    petId: str
+    title: str
+    careType: str
+    instructions: str
+    dueAt: datetime
+    startAt: datetime
+    endAt: datetime
+    estimatedMinutes: int
+    status: TaskStatus
     priority: str
     reminderMinutesBefore: int
     isRecurring: bool
     recurrenceRule: str = ""
-    completedAt: Optional[datetime] = None
+    lastCompletedAt: datetime = None
+    nextDueAt: datetime = None
     
-    def add(self) -> None:
-        """Adds the task"""
-        pass
+    def validateForPet(self, p: Pet) -> bool:
+        """Validates if the task can be assigned to the pet."""
+        if self.petId != p.uid:
+            return False
+        return True
+
+    def markCompleted(self) -> None:
+        """Marks the task as completed and updates status."""
+        self.status = TaskStatus.COMPLETED
+        self.lastCompletedAt = datetime.now()
+
+    def reschedule(self, newDueAt=None, newStartAt=None, newEndAt=None) -> None:
+        """Reschedules the task start, end, OR due time."""
+        if newDueAt is not None:
+            self.dueAt = newDueAt
+        if newStartAt is not None:
+            self.startAt = newStartAt
+        if newEndAt is not None:
+            self.endAt = newEndAt
     
-    def edit(self, updates: Dict) -> None:
-        """Edits task with provided updates"""
-        pass
+    def isOverdue(self) -> bool:
+        """Checks if task is overdue."""
+        return self.status == TaskStatus.PENDING and self.dueAt < datetime.now()
     
-    def delete(self) -> None:
-        """Deletes the task"""
-        pass
-    
-    def markCompleted(self, completedAt: datetime) -> None:
-        """Marks task as completed"""
-        pass
-    
-    def isOverdue(self, now: datetime) -> bool:
-        """Checks if task is overdue"""
-        pass
-    
-    def setRecurring(self, rule: str) -> None:
-        """Sets recurrence rule for the task"""
-        pass
-    
-    def validateTimeRange(self) -> bool:
-        """Validates that time range is valid"""
-        pass
-    
-    def overlapsWith(self, other: 'Task') -> bool:
-        """Checks if this task overlaps with another task"""
-        pass
-    
-    def getStartDateTime(self) -> datetime:
-        """Returns combined start date and time"""
-        pass
-    
-    def getEndDateTime(self) -> datetime:
-        """Returns combined end date and time"""
-        pass
+    def __repr__(self) -> str:
+        """Returns a string representation of the pet task."""
+        return f"<Task={self.title} startTime={self.startAt.time()} endTime={self.endAt.time()} dueAt={self.dueAt} status={self.status.name}>"
 
 
 @dataclass
 class User:
     uid: str
     name: str
-    email: str
-    address: str
     phoneNumber: str
     timezone: str
     pets: List[Pet] = field(default_factory=list)
-    tasks: List[Task] = field(default_factory=list)
     
     def addPet(self, pet: Pet) -> None:
-        """Adds a pet to the user's pet list"""
+        """Adds a pet to the user's pet list."""
         pass
     
     def removePet(self, petId: str) -> None:
-        """Removes a pet from the user's pet list"""
+        """Removes a pet from the user's pet list."""
         pass
     
-    def addTask(self, task: Task) -> bool:
-        """Adds a task to the user's task list"""
+    def getPet(self, petId: str) -> Pet:
+        """Returns the pet that matches the provided pet ID."""
         pass
     
-    def editTask(self, taskId: str, updates: Dict) -> bool:
-        """Edits a task with provided updates"""
+    def getUpcomingPetTasks(self, days: int) -> List["PetTask"]:
+        """Returns upcoming tasks across all pets within the given window."""
         pass
     
-    def deleteTask(self, taskId: str) -> bool:
-        """Deletes a task from the user's task list"""
-        pass
+    def __repr__(self):
+        """Returns a string representation of the user."""
+        return f"<User name={self.name}>"
     
-    def hasTaskConflict(self, candidate: Task) -> bool:
-        """Checks if a candidate task conflicts with existing tasks"""
-        pass
-    
-    def getTasksByPet(self, petId: str) -> List[Task]:
-        """Returns all tasks associated with a specific pet"""
-        pass
-    
-class Scheduler:
-    """
-    Scheduler responsible for scheduling and managing tasks for Users.
-    Methods are scaffolds matching class-diagram.mmd and intentionally left empty.
-    """
+class PetTaskScheduler:
+    """Scheduler for creating and managing pet tasks."""
 
-    def scheduleTask(self, user: User, task: Task) -> bool:
-        """Attempt to schedule `task` for `user`. Return True on success, False otherwise."""
+    def createTaskForPet(self, pet: Pet, task: PetTask) -> bool:
+        """Creates a task for a specific pet."""
         pass
 
-    def findConflicts(self, user: User, task: Task) -> List[Task]:
-        """Return a list of existing tasks for `user` that conflict with `task`."""
-        return []
+    def detectPetTaskConflicts(self, pet: Pet, candidate: PetTask) -> List[PetTask]:
+        """Detects scheduling conflicts for a pet task candidate."""
+        pass
 
-    def suggestNextSlot(self, user: User, duration: int, windowDays: int) -> Optional[datetime]:
-        """
-        Suggest the next available start datetime within `windowDays` that can fit `duration` minutes.
-        Returns a datetime or None if no slot found.
-        """
-        return None
+    def autoScheduleRecurringTasks(self, pet: Pet, windowDays: int) -> List[PetTask]:
+        """Auto-schedules recurring tasks for a pet."""
+        pass
 
-    def getDailySchedule(self, user: User, date: date) -> List[Task]:
-        """Return a list of tasks scheduled for `user` on `date`, ordered by start time."""
-        return []
+    def getPetAgenda(self, pet: Pet, day: date) -> List[PetTask]:
+        """Returns all tasks for a pet on the provided day."""
+        pass
 
-    def cancelTask(self, taskId: str) -> bool:
-        """Cancel a scheduled task by its `taskId`. Return True if canceled, False otherwise."""
-        return False
+    def skipTask(self, taskId: str, reason: str) -> bool:
+        """Skips a task with a reason."""
+        pass
