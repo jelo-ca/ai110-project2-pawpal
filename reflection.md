@@ -2,6 +2,15 @@
 
 ## 1. System Design
 
+**i. Core Actions**
+
+- Input owner + pet info
+- Add/edit tasks
+    - duration
+    - priority
+    - time availability/ preference
+- View daily schedule
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
