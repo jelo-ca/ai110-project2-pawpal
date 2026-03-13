@@ -6,20 +6,62 @@
 
 - Input owner + pet info
 - Add/edit tasks
-    - duration
-    - priority
-    - time availability/ preference
+  - duration
+  - priority
+  - time availability/ preference
 - View daily schedule
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+My Initial Design involved the minimum objects required to interact with eadch other. I didn't add potential interfaces that would connect each class. I used a relational DB model to understand how the data needs to be setup.
+
+### Initial Classes/Attributes
+
+Holds the tasks and pets classes
+User
+
+- UID
+- Name
+- Address
+- Phone Number
+- Pets (fk)
+- Tasks (fk)
+
+Holds an animal class
+Pet
+
+- UID
+- Name
+- Animal (fk)
+- Age
+
+Animal Type and Breed
+Animal
+
+- UID
+- Type
+- Breed
+
+Holds data about tasks including schedule, duration, date, and associated pets
+Task
+
+- UID
+- name
+- description
+- associated_pet (fk)
+- type
+- duration
+- start_date
+- end_date
+- start_time
+- end_time
+- edit()
+- add()
+- delete()
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+A lot of changes occured. Many getters and setters were set by the AI that I knew about yet didn't think of in the initial design. More details about pets and animals were also added which I found useful in the later stages of the system (especially with implementing it to UI elements). Tasks also gained attributes like isRecurring which opened possibilitites for calendar integration.
 
 ---
 

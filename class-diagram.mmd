@@ -1,16 +1,20 @@
+---
+config:
+  look: neo
+  theme: mc
+---
 classDiagram
     class User {
         +uid: string
         +name: string
-        +email: string
         +address: string
         +phoneNumber: string
         +timezone: string
         +pets: List~Pet~
         +tasks: List~Task~
-        +addPet(pet: Pet): void
+        +addPet(p: Pet): void
         +removePet(petId: string): void
-        +addTask(task: Task): bool
+        +addTask(t: Task): bool
         +editTask(taskId: string, updates: Map): bool
         +deleteTask(taskId: string): bool
         +hasTaskConflict(candidate: Task): bool
@@ -20,12 +24,12 @@ classDiagram
     class Pet {
         +uid: string
         +name: string
-        +animal: Animal
+        +animalId: string
         +age: int
         +birthDate: date
         +weight: float
         +medicalNotes: string
-        +updateInfo(name: string, animal: Animal, age: int): void
+        +updateInfo(name: string, animalId: string, age: int): void
         +calculateAge(today: date): int
         +getUpcomingTasks(tasks: List~Task~): List~Task~
     }
@@ -41,32 +45,38 @@ classDiagram
         +uid: string
         +name: string
         +description: string
-        +associatedPetId: string
+        +associated_pet_id: string
         +type: string
         +duration: int
-        +startDate: date
-        +endDate: date
-        +startTime: time
-        +endTime: time
+        +start_date: date
+        +end_date: date
+        +start_time: time
+        +end_time: time
         +status: string
         +priority: string
         +reminderMinutesBefore: int
         +isRecurring: bool
         +recurrenceRule: string
-        +completedAt: datetime
         +add(): void
         +edit(updates: Map): void
         +delete(): void
-        +markCompleted(completedAt: datetime): void
-        +isOverdue(now: datetime): bool
-        +setRecurring(rule: string): void
         +validateTimeRange(): bool
         +overlapsWith(other: Task): bool
         +getStartDateTime(): datetime
         +getEndDateTime(): datetime
     }
 
+    class Scheduler {
+        +scheduleTask(user: User, task: Task): bool
+        +findConflicts(user: User, task: Task): List~Task~
+        +suggestNextSlot(user: User, duration: int, windowDays: int): datetime
+        +getDailySchedule(user: User, date: date): List~Task~
+        +cancelTask(taskId: string): bool
+    }
+
     User "1" --> "0..*" Pet : owns
     User "1" --> "0..*" Task : manages
-    Pet "0..*" --> "1" Animal : animal
-    Task "0..*" --> "1" Pet : associated_pet
+    Pet "1" --> "1" Animal : species
+    Task "1" --> "1" Pet : associated_pet
+    Scheduler "1" --> "0..*" Task : schedules
+    Scheduler "1" --> "1" User : for

@@ -135,3 +135,32 @@ class User:
     def getTasksByPet(self, petId: str) -> List[Task]:
         """Returns all tasks associated with a specific pet"""
         pass
+    
+class Scheduler:
+    """
+    Scheduler responsible for scheduling and managing tasks for Users.
+    Methods are scaffolds matching class-diagram.mmd and intentionally left empty.
+    """
+
+    def scheduleTask(self, user: User, task: Task) -> bool:
+        """Attempt to schedule `task` for `user`. Return True on success, False otherwise."""
+        pass
+
+    def findConflicts(self, user: User, task: Task) -> List[Task]:
+        """Return a list of existing tasks for `user` that conflict with `task`."""
+        return []
+
+    def suggestNextSlot(self, user: User, duration: int, windowDays: int) -> Optional[datetime]:
+        """
+        Suggest the next available start datetime within `windowDays` that can fit `duration` minutes.
+        Returns a datetime or None if no slot found.
+        """
+        return None
+
+    def getDailySchedule(self, user: User, date: date) -> List[Task]:
+        """Return a list of tasks scheduled for `user` on `date`, ordered by start time."""
+        return []
+
+    def cancelTask(self, taskId: str) -> bool:
+        """Cancel a scheduled task by its `taskId`. Return True if canceled, False otherwise."""
+        return False
