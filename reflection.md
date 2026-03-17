@@ -63,6 +63,8 @@ Task
 
 A lot of changes occured. Many getters and setters were set by the AI that I knew about yet didn't think of in the initial design. More details about pets and animals were also added which I found useful in the later stages of the system (especially with implementing it to UI elements). Tasks also gained attributes like isRecurring which opened possibilitites for calendar integration.
 
+Another realization I had was the designation between a task app and a "Pet" task app. I was initially designing a task app that could link pets to tasks you assign but from reading a little more, I realized that each task SHOULD be related to a pet. This change caused a change where the pet now hold a list of task rather than the other way around.
+
 ---
 
 ## 2. Scheduling Logic and Tradeoffs
