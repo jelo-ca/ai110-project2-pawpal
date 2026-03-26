@@ -237,6 +237,16 @@ class PetTaskScheduler:
         """Returns tasks sorted by startAt time."""
         return sorted(tasks, key=lambda t: t.startAt)
 
+    def sort_by_completion(self, tasks: List[PetTask]) -> List[PetTask]:
+        """Returns tasks sorted by status: PENDING first, COMPLETED second, SKIPPED last."""
+        order = {TaskStatus.PENDING: 0, TaskStatus.COMPLETED: 1, TaskStatus.SKIPPED: 2}
+        return sorted(tasks, key=lambda t: order[t.status])
+
+    def sort_by_pet_name(self, tasks: List[PetTask], pets: List[Pet]) -> List[PetTask]:
+        """Returns tasks sorted alphabetically by their associated pet's name."""
+        name_map = {pet.uid: pet.name for pet in pets}
+        return sorted(tasks, key=lambda t: name_map.get(t.petId, ""))
+
     def skipTask(self, taskId: str, reason: str) -> bool:
         """Skips a task with a reason."""
         task = self._tasks.get(taskId)
