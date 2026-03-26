@@ -189,6 +189,22 @@ class PetTaskScheduler:
             and t.endAt > candidate.startAt
         ]
 
+    def warnConflict(self, candidate: PetTask) -> str:
+        """Returns a warning string if any pending tasks across all pets share the same startAt as the candidate, else empty string."""
+        conflicts = [
+            t for t in self._tasks.values()
+            if t.uid != candidate.uid
+            and t.status == TaskStatus.PENDING
+            and t.startAt == candidate.startAt
+        ]
+        if not conflicts:
+            return ""
+        names = ", ".join(
+            f'"{t.title}" (pet {t.petId})' if t.petId != candidate.petId else f'"{t.title}"'
+            for t in conflicts
+        )
+        return f"Warning: '{candidate.title}' conflicts with {names} scheduled at {candidate.startAt.strftime('%H:%M')}."
+
     def autoScheduleRecurringTasks(self, pet: Pet, windowDays: int) -> List[PetTask]:
         """Auto-schedules recurring tasks for a pet."""
         import uuid

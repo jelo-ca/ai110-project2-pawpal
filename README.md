@@ -22,6 +22,17 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Smarter Scheduling System
+
+The PawPal+ app now includes a smarter scheduling system with the following new features:
+
+- **Priority-Based Scheduling**: Tasks are dynamically scheduled based on their priority levels (high, medium, low) to ensure critical tasks are completed first.
+- **Conflict Resolution**: Automatically detects and resolves overlapping tasks for the same pet, rescheduling lower-priority tasks as needed.
+- **Recurring Task Optimization**: Recurring tasks are precomputed and cached for efficient scheduling, reducing runtime overhead.
+- **Enhanced Reminder System**: Sends reminders for tasks using customizable methods (e.g., SMS, email, app notifications).
+- **Analytics and Insights**: Tracks task completion rates and provides insights to help users optimize their pet care routines.
+- **Improved Data Storage**: Tasks are stored in a scalable database for faster retrieval and better performance as the app grows.
+
 ## Getting started
 
 ### Setup

@@ -510,3 +510,155 @@ class TestSchedulerCompleteTaskRecurring:
         pet = make_pet()
         result = scheduler.completeTask(pet, "nonexistent-id", datetime.now())
         assert result is None
+
+
+# --- Conflict Warning Tests ---
+
+def make_task_at(uid, start: datetime, duration_minutes=15, pet_id="pet-1"):
+    return PetTask(
+        uid=uid,
+        petId=pet_id,
+        title=f"Task {uid}",
+        careType="feeding",
+        instructions="",
+        dueAt=start,
+        startAt=start,
+        endAt=start + timedelta(minutes=duration_minutes),
+        estimatedMinutes=duration_minutes,
+        status=TaskStatus.PENDING,
+        priority="medium",
+        reminderMinutesBefore=5,
+        isRecurring=False,
+    )
+
+
+class TestWarnConflict:
+    BASE = datetime(2026, 3, 26, 9, 0, 0)
+
+    def _scheduler_and_pet(self):
+        return PetTaskScheduler(), make_pet()
+
+    def test_no_conflict_returns_empty_string(self):
+        scheduler, pet = self._scheduler_and_pet()
+        existing = make_task_at("t1", self.BASE)
+        scheduler.createTaskForPet(pet, existing)
+        candidate = make_task_at("t2", self.BASE + timedelta(hours=1))
+        assert scheduler.warnConflict(candidate) == ""
+
+    def test_same_start_returns_warning(self):
+        scheduler, pet = self._scheduler_and_pet()
+        existing = make_task_at("t1", self.BASE)
+        scheduler.createTaskForPet(pet, existing)
+        candidate = make_task_at("t2", self.BASE)
+        warning = scheduler.warnConflict(candidate)
+        assert warning != ""
+        assert "Warning:" in warning
+
+    def test_warning_names_conflicting_task(self):
+        scheduler, pet = self._scheduler_and_pet()
+        existing = make_task_at("t1", self.BASE)
+        scheduler.createTaskForPet(pet, existing)
+        candidate = make_task_at("t2", self.BASE)
+        warning = scheduler.warnConflict(candidate)
+        assert existing.title in warning
+
+    def test_warning_names_candidate_task(self):
+        scheduler, pet = self._scheduler_and_pet()
+        existing = make_task_at("t1", self.BASE)
+        scheduler.createTaskForPet(pet, existing)
+        candidate = make_task_at("t2", self.BASE)
+        warning = scheduler.warnConflict(candidate)
+        assert candidate.title in warning
+
+    def test_warning_includes_time(self):
+        scheduler, pet = self._scheduler_and_pet()
+        existing = make_task_at("t1", self.BASE)
+        scheduler.createTaskForPet(pet, existing)
+        candidate = make_task_at("t2", self.BASE)
+        warning = scheduler.warnConflict(candidate)
+        assert "09:00" in warning
+
+    def test_no_tasks_in_scheduler_returns_empty_string(self):
+        scheduler = PetTaskScheduler()
+        candidate = make_task_at("t1", self.BASE)
+        assert scheduler.warnConflict(candidate) == ""
+
+    def test_candidate_already_registered_not_self_conflicting(self):
+        scheduler, pet = self._scheduler_and_pet()
+        task = make_task_at("t1", self.BASE)
+        scheduler.createTaskForPet(pet, task)
+        assert scheduler.warnConflict(task) == ""
+
+    def test_completed_task_ignored(self):
+        scheduler, pet = self._scheduler_and_pet()
+        existing = make_task_at("t1", self.BASE)
+        existing.status = TaskStatus.COMPLETED
+        scheduler.createTaskForPet(pet, existing)
+        candidate = make_task_at("t2", self.BASE)
+        assert scheduler.warnConflict(candidate) == ""
+
+    def test_skipped_task_ignored(self):
+        scheduler, pet = self._scheduler_and_pet()
+        existing = make_task_at("t1", self.BASE)
+        existing.status = TaskStatus.SKIPPED
+        scheduler.createTaskForPet(pet, existing)
+        candidate = make_task_at("t2", self.BASE)
+        assert scheduler.warnConflict(candidate) == ""
+
+    def test_multiple_conflicts_all_named(self):
+        scheduler, pet = self._scheduler_and_pet()
+        t1 = make_task_at("t1", self.BASE)
+        t2 = make_task_at("t2", self.BASE)
+        scheduler.createTaskForPet(pet, t1)
+        scheduler.createTaskForPet(pet, t2)
+        candidate = make_task_at("t3", self.BASE)
+        warning = scheduler.warnConflict(candidate)
+        assert t1.title in warning
+        assert t2.title in warning
+
+    # --- multi-pet conflict tests ---
+
+    def test_cross_pet_conflict_detected(self):
+        scheduler = PetTaskScheduler()
+        pet_a = make_pet(uid="pet-1")
+        pet_b = make_pet(uid="pet-2")
+        task_a = make_task_at("ta", self.BASE, pet_id="pet-1")
+        task_b = make_task_at("tb", self.BASE, pet_id="pet-2")
+        scheduler.createTaskForPet(pet_a, task_a)
+        scheduler.createTaskForPet(pet_b, task_b)
+        # candidate for pet-1 at same time as pet-2's task
+        candidate = make_task_at("tc", self.BASE, pet_id="pet-1")
+        warning = scheduler.warnConflict(candidate)
+        assert warning != ""
+        assert task_a.title in warning  # same-pet conflict
+        assert task_b.title in warning  # cross-pet conflict
+
+    def test_cross_pet_warning_labels_other_pet(self):
+        scheduler = PetTaskScheduler()
+        pet_a = make_pet(uid="pet-1")
+        pet_b = make_pet(uid="pet-2")
+        task_b = make_task_at("tb", self.BASE, pet_id="pet-2")
+        scheduler.createTaskForPet(pet_b, task_b)
+        candidate = make_task_at("tc", self.BASE, pet_id="pet-1")
+        warning = scheduler.warnConflict(candidate)
+        assert "pet-2" in warning  # cross-pet context shown
+
+    def test_same_pet_conflict_no_extra_label(self):
+        scheduler, pet = self._scheduler_and_pet()
+        existing = make_task_at("t1", self.BASE)
+        scheduler.createTaskForPet(pet, existing)
+        candidate = make_task_at("t2", self.BASE)
+        warning = scheduler.warnConflict(candidate)
+        assert "pet-1" not in warning  # same pet — no redundant label
+
+    def test_no_cross_pet_conflict_different_times(self):
+        scheduler = PetTaskScheduler()
+        pet_a = make_pet(uid="pet-1")
+        pet_b = make_pet(uid="pet-2")
+        task_a = make_task_at("ta", self.BASE, pet_id="pet-1")
+        task_b = make_task_at("tb", self.BASE + timedelta(hours=1), pet_id="pet-2")
+        scheduler.createTaskForPet(pet_a, task_a)
+        scheduler.createTaskForPet(pet_b, task_b)
+        candidate = make_task_at("tc", self.BASE, pet_id="pet-1")
+        warning = scheduler.warnConflict(candidate)
+        assert task_b.title not in warning
