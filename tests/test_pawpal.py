@@ -3,7 +3,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from datetime import date, datetime, timedelta
-from pawpal_system import Pet, PetTask, TaskStatus, PetTaskScheduler
+from pawpal_system import Pet, PetTask, TaskStatus, PetTaskScheduler, ConflictResult
 
 
 # --- Fixtures ---
@@ -759,8 +759,11 @@ class TestPawPalSystem:
             isRecurring=False
         )
         self.pet.addTask(task1)
-        conflicts = self.scheduler.detectPetTaskConflicts(self.pet, task2)
-        assert task1 in conflicts
+        result = self.scheduler.detectPetTaskConflicts(self.pet, task2)
+        assert isinstance(result, ConflictResult)
+        assert task1 in result.conflicts
+        assert result.suggested_start is not None
+        assert result.suggested_start >= task2.startAt
 
     def test_recurring_task_scheduling(self):
         task = PetTask(

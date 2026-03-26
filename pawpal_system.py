@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional
 from enum import Enum, auto
 
 
@@ -8,6 +8,13 @@ class TaskStatus(Enum):
     PENDING = auto()
     COMPLETED = auto()
     SKIPPED = auto()
+
+
+@dataclass
+class ConflictResult:
+    """Result of a conflict detection check."""
+    conflicts: List["PetTask"]
+    suggested_start: Optional[datetime]
 
 
 
@@ -179,23 +186,48 @@ class PetTaskScheduler:
         self._tasks[task.uid] = task
         return True
 
-    def detectPetTaskConflicts(self, pet: Pet, candidate: PetTask) -> List[PetTask]:
-        """Detects scheduling conflicts for a pet task candidate."""
-        return [
+    def _next_available_slot(self, candidate: PetTask) -> datetime:
+        """Returns the earliest start time >= candidate.startAt that fits
+        the candidate's duration without overlapping any pending task across all pets."""
+        duration = candidate.endAt - candidate.startAt
+        all_pending = sorted(
+            (t for t in self._tasks.values()
+             if t.uid != candidate.uid and t.status == TaskStatus.PENDING),
+            key=lambda t: t.startAt,
+        )
+        try_start = candidate.startAt
+        for task in all_pending:
+            if try_start + duration <= task.startAt:
+                break
+            if task.endAt > try_start:
+                try_start = task.endAt
+        return try_start
+
+    def detectPetTaskConflicts(self, pet: Pet, candidate: PetTask) -> ConflictResult:
+        """Detects scheduling conflicts for a pet task candidate.
+
+        Returns a ConflictResult with overlapping tasks for the given pet and
+        the next available start time across all pets when conflicts exist.
+        """
+        conflicts = [
             t for t in pet.tasks
             if t.uid != candidate.uid
             and t.status == TaskStatus.PENDING
             and t.startAt < candidate.endAt
             and t.endAt > candidate.startAt
         ]
+        suggested_start = self._next_available_slot(candidate) if conflicts else None
+        return ConflictResult(conflicts=conflicts, suggested_start=suggested_start)
 
     def warnConflict(self, candidate: PetTask) -> str:
-        """Returns a warning string if any pending tasks across all pets share the same startAt as the candidate, else empty string."""
+        """Returns a warning string if any pending tasks across all pets overlap
+        with the candidate's time window, including the next available slot."""
         conflicts = [
             t for t in self._tasks.values()
             if t.uid != candidate.uid
             and t.status == TaskStatus.PENDING
-            and t.startAt == candidate.startAt
+            and t.startAt < candidate.endAt
+            and t.endAt > candidate.startAt
         ]
         if not conflicts:
             return ""
@@ -203,7 +235,12 @@ class PetTaskScheduler:
             f'"{t.title}" (pet {t.petId})' if t.petId != candidate.petId else f'"{t.title}"'
             for t in conflicts
         )
-        return f"Warning: '{candidate.title}' conflicts with {names} scheduled at {candidate.startAt.strftime('%H:%M')}."
+        suggested = self._next_available_slot(candidate)
+        return (
+            f"Warning: '{candidate.title}' conflicts with {names} "
+            f"scheduled at {candidate.startAt.strftime('%H:%M')}. "
+            f"Suggested next slot: {suggested.strftime('%H:%M')}."
+        )
 
     def autoScheduleRecurringTasks(self, pet: Pet, windowDays: int) -> List[PetTask]:
         """Auto-schedules recurring tasks for a pet."""
