@@ -2,8 +2,8 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from datetime import date, datetime
-from pawpal_system import Pet, PetTask, PetTaskScheduler, TaskStatus
+from datetime import date, datetime, timedelta
+from pawpal_system import Pet, PetTask, TaskStatus, PetTaskScheduler
 
 
 # --- Fixtures ---
@@ -370,9 +370,6 @@ class TestSchedulerEdgeCases:
 
 # --- Recurring Task Spawn on Completion ---
 
-from datetime import timedelta
-
-
 def make_recurring_task(uid="task-r", pet_id="pet-1", rule="daily"):
     base = datetime(2026, 3, 26, 8, 0, 0)
     return PetTask(
@@ -662,3 +659,129 @@ class TestWarnConflict:
         candidate = make_task_at("tc", self.BASE, pet_id="pet-1")
         warning = scheduler.warnConflict(candidate)
         assert task_b.title not in warning
+
+
+class TestPawPalSystem:
+
+    def setup_method(self):
+        self.pet = Pet(
+            uid="pet1",
+            name="Buddy",
+            animalProfileId="profile1",
+            birthDate=date(2020, 5, 20),
+            weightKg=10.0
+        )
+        self.scheduler = PetTaskScheduler()
+
+    def test_calculate_age(self):
+        today = date(2026, 3, 26)
+        assert self.pet.calculateAge(today) == 5
+
+        # Edge case: Birthday today
+        today = date(2026, 5, 20)
+        assert self.pet.calculateAge(today) == 6
+
+        # Edge case: Leap year
+        self.pet.birthDate = date(2020, 2, 29)
+        today = date(2024, 2, 28)
+        assert self.pet.calculateAge(today) == 3
+
+    def test_add_task(self):
+        task = PetTask(
+            uid="task1",
+            petId="pet1",
+            title="Morning Walk",
+            careType="Exercise",
+            instructions="Take Buddy for a 30-minute walk.",
+            dueAt=datetime(2026, 3, 27, 8, 0),
+            startAt=datetime(2026, 3, 27, 8, 0),
+            endAt=datetime(2026, 3, 27, 8, 30),
+            estimatedMinutes=30,
+            status=TaskStatus.PENDING,
+            priority="High",
+            reminderMinutesBefore=15,
+            isRecurring=False
+        )
+        assert self.pet.addTask(task) is True
+        assert task in self.pet.tasks
+
+    def test_update_task(self):
+        task = PetTask(
+            uid="task1",
+            petId="pet1",
+            title="Morning Walk",
+            careType="Exercise",
+            instructions="Take Buddy for a 30-minute walk.",
+            dueAt=datetime(2026, 3, 27, 8, 0),
+            startAt=datetime(2026, 3, 27, 8, 0),
+            endAt=datetime(2026, 3, 27, 8, 30),
+            estimatedMinutes=30,
+            status=TaskStatus.PENDING,
+            priority="High",
+            reminderMinutesBefore=15,
+            isRecurring=False
+        )
+        self.pet.addTask(task)
+        updates = {"title": "Evening Walk", "priority": "Medium"}
+        assert self.pet.updateTask("task1", updates) is True
+        assert task.title == "Evening Walk"
+        assert task.priority == "Medium"
+
+    def test_task_conflict_detection(self):
+        task1 = PetTask(
+            uid="task1",
+            petId="pet1",
+            title="Morning Walk",
+            careType="Exercise",
+            instructions="Take Buddy for a 30-minute walk.",
+            dueAt=datetime(2026, 3, 27, 8, 0),
+            startAt=datetime(2026, 3, 27, 8, 0),
+            endAt=datetime(2026, 3, 27, 8, 30),
+            estimatedMinutes=30,
+            status=TaskStatus.PENDING,
+            priority="High",
+            reminderMinutesBefore=15,
+            isRecurring=False
+        )
+        task2 = PetTask(
+            uid="task2",
+            petId="pet1",
+            title="Vet Appointment",
+            careType="Health",
+            instructions="Visit the vet for a check-up.",
+            dueAt=datetime(2026, 3, 27, 8, 15),
+            startAt=datetime(2026, 3, 27, 8, 15),
+            endAt=datetime(2026, 3, 27, 9, 0),
+            estimatedMinutes=45,
+            status=TaskStatus.PENDING,
+            priority="High",
+            reminderMinutesBefore=30,
+            isRecurring=False
+        )
+        self.pet.addTask(task1)
+        conflicts = self.scheduler.detectPetTaskConflicts(self.pet, task2)
+        assert task1 in conflicts
+
+    def test_recurring_task_scheduling(self):
+        task = PetTask(
+            uid="task1",
+            petId="pet1",
+            title="Daily Walk",
+            careType="Exercise",
+            instructions="Take Buddy for a walk.",
+            dueAt=datetime(2026, 3, 26, 8, 0),
+            startAt=datetime(2026, 3, 26, 8, 0),
+            endAt=datetime(2026, 3, 26, 8, 30),
+            estimatedMinutes=30,
+            status=TaskStatus.PENDING,
+            priority="Medium",
+            reminderMinutesBefore=15,
+            isRecurring=True,
+            recurrenceRule="daily"
+        )
+        self.pet.addTask(task)
+        scheduled_tasks = self.scheduler.autoScheduleRecurringTasks(self.pet, 3)
+        assert len(scheduled_tasks) == 3
+        assert scheduled_tasks[0].dueAt == datetime(2026, 3, 27, 8, 0)
+        assert scheduled_tasks[1].dueAt == datetime(2026, 3, 28, 8, 0)
+        assert scheduled_tasks[2].dueAt == datetime(2026, 3, 29, 8, 0)

@@ -52,3 +52,15 @@ pip install -r requirements.txt
 5. Add tests to verify key behaviors.
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
+
+## Testing PawPal+
+
+To ensure the reliability of the PawPal+ system, we use `pytest` for testing. Run the following command to execute the test suite:
+
+```bash
+pytest
+```
+
+### Reliability Confidence Level
+
+I rate the reliability of the system at **4/5 stars**, based on the robustness of the implemented features and the comprehensive test coverage.
