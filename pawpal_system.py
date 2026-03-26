@@ -11,6 +11,35 @@ class TaskStatus(Enum):
 
 
 @dataclass
+class PriorityWeights:
+    urgency_weight: float = 0.6
+    user_importance_weight: float = 0.4
+
+
+@dataclass
+class TaskPriorityFactors:
+    urgency: int          # 1 = not urgent, 5 = emergency
+    user_importance: int  # 1 = low personal priority, 5 = must-do
+
+    def compute_score(self, weights: PriorityWeights = None) -> float:
+        w = weights or PriorityWeights()
+        return (
+            self.urgency * w.urgency_weight +
+            self.user_importance * w.user_importance_weight
+        )
+
+    def to_label(self, weights: PriorityWeights = None) -> str:
+        score = self.compute_score(weights)
+        if score >= 4.0:
+            return "critical"
+        if score >= 3.0:
+            return "high"
+        if score >= 2.0:
+            return "medium"
+        return "low"
+
+
+@dataclass
 class ConflictResult:
     """Result of a conflict detection check."""
     conflicts: List["PetTask"]
@@ -107,6 +136,7 @@ class PetTask:
     recurrenceRule: str = ""
     lastCompletedAt: datetime = None
     nextDueAt: datetime = None
+    priority_factors: Optional[TaskPriorityFactors] = None
     
     def validateForPet(self, p: Pet) -> bool:
         """Validates if the task can be assigned to the pet."""
@@ -294,6 +324,20 @@ class PetTaskScheduler:
         """Returns tasks sorted by status: PENDING first, COMPLETED second, SKIPPED last."""
         order = {TaskStatus.PENDING: 0, TaskStatus.COMPLETED: 1, TaskStatus.SKIPPED: 2}
         return sorted(tasks, key=lambda t: order[t.status])
+
+    def sort_by_priority(
+        self,
+        tasks: List[PetTask],
+        weights: PriorityWeights = None,
+        descending: bool = True,
+    ) -> List[PetTask]:
+        """Returns tasks sorted by computed priority score (highest first by default).
+        Tasks without priority_factors sort to the end."""
+        def key(t):
+            if t.priority_factors is None:
+                return -1.0
+            return t.priority_factors.compute_score(weights)
+        return sorted(tasks, key=key, reverse=descending)
 
     def sort_by_pet_name(self, tasks: List[PetTask], pets: List[Pet]) -> List[PetTask]:
         """Returns tasks sorted alphabetically by their associated pet's name."""

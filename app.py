@@ -5,7 +5,10 @@ from pathlib import Path
 
 import streamlit as st
 
-from pawpal_system import AnimalProfile, Pet, PetTask, PetTaskScheduler, TaskStatus, User
+from pawpal_system import (
+    AnimalProfile, Pet, PetTask, PetTaskScheduler,
+    PriorityWeights, TaskPriorityFactors, TaskStatus, User,
+)
 
 TASKS_FILE = Path(__file__).parent / "tasks_data.json"
 
@@ -18,6 +21,20 @@ def load_tasks() -> list:
 
 def save_tasks(tasks: list) -> None:
     TASKS_FILE.write_text(json.dumps(tasks, indent=2))
+
+
+def _compute_urgency(due_at: datetime) -> int:
+    """Map time-until-due to an urgency score 1–5."""
+    hours_left = (due_at - datetime.now()).total_seconds() / 3600
+    if hours_left < 1:
+        return 5
+    if hours_left < 3:
+        return 4
+    if hours_left < 6:
+        return 3
+    if hours_left < 12:
+        return 2
+    return 1
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -98,70 +115,128 @@ scheduler: PetTaskScheduler = st.session_state.scheduler
 pet: Pet = st.session_state.pet
 user: User = st.session_state.user
 
+weights = PriorityWeights()
+
 # Reconstruct PetTask objects from persisted task dicts so the scheduler is in sync
 if not pet.tasks and st.session_state.tasks:
     now = datetime.now()
     for t in st.session_state.tasks:
+        pf = None
+        if "due_at" in t and "user_importance" in t:
+            saved_due = datetime.fromisoformat(t["due_at"])
+            pf = TaskPriorityFactors(
+                urgency=_compute_urgency(saved_due),
+                user_importance=t["user_importance"],
+            )
+        saved_start = datetime.fromisoformat(t["start_at"]) if "start_at" in t else now
+        saved_due_dt = datetime.fromisoformat(t["due_at"]) if "due_at" in t else now
         pet_task = PetTask(
             uid=str(uuid.uuid4()),
             petId=pet.uid,
             title=t["title"],
-            careType="general",
-            instructions="",
-            dueAt=now,
-            startAt=now,
-            endAt=now + timedelta(minutes=t["duration_minutes"]),
+            careType=t.get("care_type", "general"),
+            instructions=t.get("instructions", ""),
+            dueAt=saved_due_dt,
+            startAt=saved_start,
+            endAt=saved_start + timedelta(minutes=t["duration_minutes"]),
             estimatedMinutes=t["duration_minutes"],
             status=TaskStatus.PENDING,
             priority=t["priority"],
-            reminderMinutesBefore=15,
-            isRecurring=False,
+            priority_factors=pf,
+            reminderMinutesBefore=t.get("reminder_minutes", 15),
+            isRecurring=t.get("is_recurring", False),
         )
         scheduler.createTaskForPet(pet, pet_task)
 
 # --- Task input ---
-st.markdown("### Tasks")
-st.caption("Add a few tasks. In your final version, these should feed into your scheduler.")
+st.markdown("### Add Task")
 
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns([3, 1])
 with col1:
     task_title = st.text_input("Task title", value="Morning walk")
 with col2:
-    duration = st.number_input("Duration (minutes)", min_value=1, max_value=240, value=20)
-with col3:
-    priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
+    care_type = st.selectbox("Care type", ["feeding", "exercise", "grooming", "medication", "checkup", "other"])
+
+col_start, col_dur, col_due = st.columns(3)
+with col_start:
+    default_start = (datetime.now() + timedelta(minutes=30)).time().replace(second=0, microsecond=0)
+    start_time = st.time_input("Start time", value=default_start)
+    start_at = datetime.combine(date.today(), start_time)
+with col_dur:
+    duration = st.number_input("Duration (min)", min_value=1, max_value=240, value=20)
+    end_at = start_at + timedelta(minutes=int(duration))
+with col_due:
+    default_due = (datetime.now() + timedelta(hours=2)).time().replace(second=0, microsecond=0)
+    due_time = st.time_input("Due time", value=default_due)
+    due_at = datetime.combine(date.today(), due_time)
+    urgency = _compute_urgency(due_at)
+    st.caption(f"Urgency: **{urgency}/5**")
+
+col_imp, _, col_preview = st.columns([2, 1, 1])
+with col_imp:
+    importance = st.slider("User importance", 1, 5, 3, help="1 = low priority  |  5 = must-do")
+with col_preview:
+    _preview = TaskPriorityFactors(urgency=urgency, user_importance=importance)
+    st.metric("Priority", _preview.to_label(weights), f"score {_preview.compute_score(weights):.1f}")
+
+with st.expander("Optional details"):
+    instructions = st.text_area("Instructions", value="", placeholder="Any special notes...")
+    col_rem, col_rec = st.columns(2)
+    with col_rem:
+        reminder = st.number_input("Reminder (min before)", min_value=0, max_value=120, value=15)
+    with col_rec:
+        is_recurring = st.checkbox("Recurring task")
 
 if st.button("Add task"):
-    now = datetime.now()
+    factors = TaskPriorityFactors(urgency=urgency, user_importance=importance)
+    priority_label = factors.to_label(weights)
     pet_task = PetTask(
         uid=str(uuid.uuid4()),
         petId=pet.uid,
         title=task_title,
-        careType="general",
-        instructions="",
-        dueAt=now,
-        startAt=now,
-        endAt=now + timedelta(minutes=int(duration)),
+        careType=care_type,
+        instructions=instructions,
+        dueAt=due_at,
+        startAt=start_at,
+        endAt=end_at,
         estimatedMinutes=int(duration),
         status=TaskStatus.PENDING,
-        priority=priority,
-        reminderMinutesBefore=15,
-        isRecurring=False,
+        priority=priority_label,
+        priority_factors=factors,
+        reminderMinutesBefore=int(reminder),
+        isRecurring=is_recurring,
     )
     conflict_warning = scheduler.warnConflict(pet_task)
     scheduler.createTaskForPet(pet, pet_task)
-    st.session_state.tasks.append(
-        {"title": task_title, "duration_minutes": int(duration), "priority": priority}
-    )
+    st.session_state.tasks.append({
+        "title": task_title,
+        "care_type": care_type,
+        "duration_minutes": int(duration),
+        "start_at": start_at.isoformat(),
+        "due_at": due_at.isoformat(),
+        "priority": priority_label,
+        "user_importance": importance,
+        "instructions": instructions,
+        "reminder_minutes": int(reminder),
+        "is_recurring": is_recurring,
+    })
     save_tasks(st.session_state.tasks)
     if conflict_warning:
         st.warning(conflict_warning)
     else:
         st.success(f"Task '{task_title}' added successfully.")
 
-PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
-PRIORITY_BADGE = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+PRIORITY_BADGE = {"critical": "🚨", "high": "🔴", "medium": "🟡", "low": "🟢"}
 STATUS_BADGE = {TaskStatus.PENDING: "⏳", TaskStatus.COMPLETED: "✅", TaskStatus.SKIPPED: "⏭️"}
+
+
+def _priority_cell(t: PetTask) -> str:
+    badge = PRIORITY_BADGE.get(t.priority, "")
+    if t.priority_factors:
+        score = t.priority_factors.compute_score(weights)
+        return f"{badge} {t.priority} ({score:.1f})"
+    return f"{badge} {t.priority}"
 
 if pet.tasks:
     sort_option = st.radio(
@@ -175,13 +250,13 @@ if pet.tasks:
     elif sort_option == "Status":
         sorted_tasks = scheduler.sort_by_completion(pet.tasks)
     else:
-        sorted_tasks = sorted(pet.tasks, key=lambda t: PRIORITY_ORDER.get(t.priority, 99))
+        sorted_tasks = scheduler.sort_by_priority(pet.tasks, weights)
 
     rows = [
         {
             "": STATUS_BADGE.get(t.status, ""),
             "Task": t.title,
-            "Priority": f"{PRIORITY_BADGE.get(t.priority, '')} {t.priority}",
+            "Priority": _priority_cell(t),
             "Duration (min)": t.estimatedMinutes,
             "Start": t.startAt.strftime("%H:%M"),
         }
@@ -217,7 +292,7 @@ if st.button("Generate schedule"):
             {
                 "": STATUS_BADGE.get(t.status, ""),
                 "Task": t.title,
-                "Priority": f"{PRIORITY_BADGE.get(t.priority, '')} {t.priority}",
+                "Priority": _priority_cell(t),
                 "Start": t.startAt.strftime("%H:%M"),
                 "End": t.endAt.strftime("%H:%M"),
                 "Duration (min)": t.estimatedMinutes,
