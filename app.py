@@ -1,4 +1,23 @@
+import json
+import uuid
+from datetime import date, datetime, timedelta
+from pathlib import Path
+
 import streamlit as st
+
+from pawpal_system import AnimalProfile, Pet, PetTask, PetTaskScheduler, TaskStatus, User
+
+TASKS_FILE = Path(__file__).parent / "tasks_data.json"
+
+
+def load_tasks() -> list:
+    if TASKS_FILE.exists():
+        return json.loads(TASKS_FILE.read_text())
+    return []
+
+
+def save_tasks(tasks: list) -> None:
+    TASKS_FILE.write_text(json.dumps(tasks, indent=2))
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -43,11 +62,66 @@ owner_name = st.text_input("Owner name", value="Jordan")
 pet_name = st.text_input("Pet name", value="Mochi")
 species = st.selectbox("Species", ["dog", "cat", "other"])
 
-st.markdown("### Tasks")
-st.caption("Add a few tasks. In your final version, these should feed into your scheduler.")
+# --- Session state initialization ---
+# Reference existing objects before creating new ones so data survives reruns.
+
+if "scheduler" not in st.session_state:
+    st.session_state.scheduler = PetTaskScheduler()
+
+if "pet" not in st.session_state:
+    st.session_state.pet = Pet(
+        uid="pet-1",
+        name=pet_name,
+        animalProfileId="profile-1",
+        birthDate=date(2020, 1, 1),
+        weightKg=5.0,
+    )
+else:
+    st.session_state.pet.name = pet_name
+
+if "user" not in st.session_state:
+    st.session_state.user = User(
+        uid="user-1",
+        name=owner_name,
+        phoneNumber="",
+        timezone="UTC",
+        pets=[st.session_state.pet],
+    )
+else:
+    st.session_state.user.name = owner_name
 
 if "tasks" not in st.session_state:
-    st.session_state.tasks = []
+    st.session_state.tasks = load_tasks()
+
+# Convenience references
+scheduler: PetTaskScheduler = st.session_state.scheduler
+pet: Pet = st.session_state.pet
+user: User = st.session_state.user
+
+# Reconstruct PetTask objects from persisted task dicts so the scheduler is in sync
+if not pet.tasks and st.session_state.tasks:
+    now = datetime.now()
+    for t in st.session_state.tasks:
+        pet_task = PetTask(
+            uid=str(uuid.uuid4()),
+            petId=pet.uid,
+            title=t["title"],
+            careType="general",
+            instructions="",
+            dueAt=now,
+            startAt=now,
+            endAt=now + timedelta(minutes=t["duration_minutes"]),
+            estimatedMinutes=t["duration_minutes"],
+            status=TaskStatus.PENDING,
+            priority=t["priority"],
+            reminderMinutesBefore=15,
+            isRecurring=False,
+        )
+        scheduler.createTaskForPet(pet, pet_task)
+
+# --- Task input ---
+st.markdown("### Tasks")
+st.caption("Add a few tasks. In your final version, these should feed into your scheduler.")
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -58,9 +132,27 @@ with col3:
     priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
 
 if st.button("Add task"):
+    now = datetime.now()
+    pet_task = PetTask(
+        uid=str(uuid.uuid4()),
+        petId=pet.uid,
+        title=task_title,
+        careType="general",
+        instructions="",
+        dueAt=now,
+        startAt=now,
+        endAt=now + timedelta(minutes=int(duration)),
+        estimatedMinutes=int(duration),
+        status=TaskStatus.PENDING,
+        priority=priority,
+        reminderMinutesBefore=15,
+        isRecurring=False,
+    )
+    scheduler.createTaskForPet(pet, pet_task)
     st.session_state.tasks.append(
         {"title": task_title, "duration_minutes": int(duration), "priority": priority}
     )
+    save_tasks(st.session_state.tasks)
 
 if st.session_state.tasks:
     st.write("Current tasks:")
@@ -74,15 +166,22 @@ st.subheader("Build Schedule")
 st.caption("This button should call your scheduling logic once you implement it.")
 
 if st.button("Generate schedule"):
-    st.warning(
-        "Not implemented yet. Next step: create your scheduling logic (classes/functions) and call it here."
-    )
-    st.markdown(
-        """
+    today = date.today()
+    agenda = scheduler.getPetAgenda(pet, today)
+    if agenda:
+        st.success(f"Schedule for {pet.name} ({user.name}) — {today}")
+        for t in agenda:
+            st.markdown(f"- **{t.title}** | {t.estimatedMinutes} min | priority: {t.priority}")
+    else:
+        st.warning(
+            "Not implemented yet. Next step: create your scheduling logic (classes/functions) and call it here."
+        )
+        st.markdown(
+            """
 Suggested approach:
 1. Design your UML (draft).
 2. Create class stubs (no logic).
 3. Implement scheduling behavior.
 4. Connect your scheduler here and display results.
 """
-    )
+        )
