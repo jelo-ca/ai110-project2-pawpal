@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Dict, List
 from enum import Enum, auto
 
@@ -7,6 +7,7 @@ from enum import Enum, auto
 class TaskStatus(Enum):
     PENDING = auto()
     COMPLETED = auto()
+    SKIPPED = auto()
 
 
 
@@ -20,7 +21,7 @@ class AnimalProfile:
     
     def displayName(self) -> str:
         """Returns formatted display name of the animal profile."""
-        pass
+        return f"{self.breed} ({self.species}) - {self.lifeStage}"
 
 
 @dataclass
@@ -35,27 +36,46 @@ class Pet:
     
     def updateInfo(self, name: str, weightKg: float, medicalNotes: str) -> None:
         """Updates pet information."""
-        pass
-    
+        self.name = name
+        self.weightKg = weightKg
+        self.medicalNotes = medicalNotes
+
     def calculateAge(self, today: date) -> int:
         """Calculates age based on birth date."""
-        pass
-    
+        age = today.year - self.birthDate.year
+        if (today.month, today.day) < (self.birthDate.month, self.birthDate.day):
+            age -= 1
+        return age
+
     def addTask(self, task: "PetTask") -> bool:
         """Adds a task to this pet's task list."""
-        pass
+        if task.petId != self.uid:
+            return False
+        self.tasks.append(task)
+        return True
 
     def updateTask(self, taskId: str, updates: Dict) -> bool:
         """Updates a task associated with this pet."""
-        pass
+        for task in self.tasks:
+            if task.uid == taskId:
+                for key, value in updates.items():
+                    if hasattr(task, key):
+                        setattr(task, key, value)
+                return True
+        return False
 
     def completeTask(self, taskId: str, completedAt: datetime) -> bool:
         """Marks a task as complete for this pet."""
-        pass
+        for task in self.tasks:
+            if task.uid == taskId:
+                task.status = TaskStatus.COMPLETED
+                task.lastCompletedAt = completedAt
+                return True
+        return False
 
     def getDueTasks(self, windowStart: datetime, windowEnd: datetime) -> List["PetTask"]:
         """Returns tasks due in the provided time window."""
-        pass
+        return [t for t in self.tasks if windowStart <= t.dueAt <= windowEnd]
     
     def __repr__(self) -> str:
         """Returns a string representation of the pet."""
@@ -120,19 +140,27 @@ class User:
     
     def addPet(self, pet: Pet) -> None:
         """Adds a pet to the user's pet list."""
-        pass
-    
+        self.pets.append(pet)
+
     def removePet(self, petId: str) -> None:
         """Removes a pet from the user's pet list."""
-        pass
-    
+        self.pets = [p for p in self.pets if p.uid != petId]
+
     def getPet(self, petId: str) -> Pet:
         """Returns the pet that matches the provided pet ID."""
-        pass
-    
+        for pet in self.pets:
+            if pet.uid == petId:
+                return pet
+        return None
+
     def getUpcomingPetTasks(self, days: int) -> List["PetTask"]:
         """Returns upcoming tasks across all pets within the given window."""
-        pass
+        now = datetime.now()
+        window_end = now + timedelta(days=days)
+        tasks = []
+        for pet in self.pets:
+            tasks.extend(pet.getDueTasks(now, window_end))
+        return tasks
     
     def __repr__(self):
         """Returns a string representation of the user."""
@@ -141,22 +169,74 @@ class User:
 class PetTaskScheduler:
     """Scheduler for creating and managing pet tasks."""
 
+    def __init__(self):
+        self._tasks: Dict[str, PetTask] = {}
+
     def createTaskForPet(self, pet: Pet, task: PetTask) -> bool:
         """Creates a task for a specific pet."""
-        pass
+        if not pet.addTask(task):
+            return False
+        self._tasks[task.uid] = task
+        return True
 
     def detectPetTaskConflicts(self, pet: Pet, candidate: PetTask) -> List[PetTask]:
         """Detects scheduling conflicts for a pet task candidate."""
-        pass
+        return [
+            t for t in pet.tasks
+            if t.uid != candidate.uid
+            and t.status == TaskStatus.PENDING
+            and t.startAt < candidate.endAt
+            and t.endAt > candidate.startAt
+        ]
 
     def autoScheduleRecurringTasks(self, pet: Pet, windowDays: int) -> List[PetTask]:
         """Auto-schedules recurring tasks for a pet."""
-        pass
+        import uuid
+
+        scheduled = []
+        window_end = datetime.now() + timedelta(days=windowDays)
+        deltas = {"daily": timedelta(days=1), "weekly": timedelta(weeks=1)}
+
+        for task in list(pet.tasks):
+            if not task.isRecurring or task.recurrenceRule.lower() not in deltas:
+                continue
+            delta = deltas[task.recurrenceRule.lower()]
+            duration = task.endAt - task.startAt
+            current = (task.nextDueAt or task.dueAt) + delta
+
+            while current <= window_end:
+                new_task = PetTask(
+                    uid=str(uuid.uuid4()),
+                    petId=task.petId,
+                    title=task.title,
+                    careType=task.careType,
+                    instructions=task.instructions,
+                    dueAt=current,
+                    startAt=current,
+                    endAt=current + duration,
+                    estimatedMinutes=task.estimatedMinutes,
+                    status=TaskStatus.PENDING,
+                    priority=task.priority,
+                    reminderMinutesBefore=task.reminderMinutesBefore,
+                    isRecurring=task.isRecurring,
+                    recurrenceRule=task.recurrenceRule,
+                )
+                pet.tasks.append(new_task)
+                self._tasks[new_task.uid] = new_task
+                scheduled.append(new_task)
+                current += delta
+
+            task.nextDueAt = current
+        return scheduled
 
     def getPetAgenda(self, pet: Pet, day: date) -> List[PetTask]:
         """Returns all tasks for a pet on the provided day."""
-        pass
+        return [t for t in pet.tasks if t.dueAt.date() == day]
 
     def skipTask(self, taskId: str, reason: str) -> bool:
         """Skips a task with a reason."""
-        pass
+        task = self._tasks.get(taskId)
+        if task is None:
+            return False
+        task.status = TaskStatus.SKIPPED
+        return True
