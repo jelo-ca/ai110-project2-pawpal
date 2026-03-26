@@ -247,6 +247,48 @@ class PetTaskScheduler:
         name_map = {pet.uid: pet.name for pet in pets}
         return sorted(tasks, key=lambda t: name_map.get(t.petId, ""))
 
+    def completeTask(self, pet: Pet, taskId: str, completedAt: datetime) -> "PetTask | None":
+        """Marks a task complete and spawns the next instance if it is recurring.
+
+        Returns the new PetTask if one was created, otherwise None.
+        """
+        import uuid
+
+        if not pet.completeTask(taskId, completedAt):
+            return None
+
+        task = self._tasks.get(taskId)
+        if task is None or not task.isRecurring:
+            return None
+
+        deltas = {"daily": timedelta(days=1), "weekly": timedelta(weeks=1)}
+        delta = deltas.get(task.recurrenceRule.lower(), None)
+        if delta is None:
+            return None
+
+        duration = task.endAt - task.startAt
+        next_due = task.dueAt + delta
+        new_task = PetTask(
+            uid=str(uuid.uuid4()),
+            petId=task.petId,
+            title=task.title,
+            careType=task.careType,
+            instructions=task.instructions,
+            dueAt=next_due,
+            startAt=next_due,
+            endAt=next_due + duration,
+            estimatedMinutes=task.estimatedMinutes,
+            status=TaskStatus.PENDING,
+            priority=task.priority,
+            reminderMinutesBefore=task.reminderMinutesBefore,
+            isRecurring=task.isRecurring,
+            recurrenceRule=task.recurrenceRule,
+        )
+        pet.tasks.append(new_task)
+        self._tasks[new_task.uid] = new_task
+        task.nextDueAt = next_due
+        return new_task
+
     def skipTask(self, taskId: str, reason: str) -> bool:
         """Skips a task with a reason."""
         task = self._tasks.get(taskId)
