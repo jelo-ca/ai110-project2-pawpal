@@ -1,0 +1,87 @@
+classDiagram
+    class TaskStatus {
+        <<enumeration>>
+        PENDING
+        COMPLETED
+        SKIPPED
+    }
+
+    class AnimalProfile {
+        +uid: str
+        +species: str
+        +breed: str
+        +lifeStage: str
+        +defaultCareGuidelines: str
+        +displayName() str
+    }
+
+    class Pet {
+        +uid: str
+        +name: str
+        +animalProfileId: str
+        +birthDate: date
+        +weightKg: float
+        +medicalNotes: str
+        +tasks: List[PetTask]
+        +updateInfo(name, weightKg, medicalNotes) None
+        +calculateAge(today) int
+        +addTask(task) bool
+        +updateTask(taskId, updates) bool
+        +completeTask(taskId, completedAt) bool
+        +getDueTasks(windowStart, windowEnd) List
+    }
+
+    class PetTask {
+        +uid: str
+        +petId: str
+        +title: str
+        +careType: str
+        +instructions: str
+        +dueAt: datetime
+        +startAt: datetime
+        +endAt: datetime
+        +estimatedMinutes: int
+        +status: TaskStatus
+        +priority: str
+        +reminderMinutesBefore: int
+        +isRecurring: bool
+        +recurrenceRule: str
+        +lastCompletedAt: datetime
+        +nextDueAt: datetime
+        +validateForPet(p) bool
+        +markCompleted() None
+        +reschedule(newDueAt, newStartAt, newEndAt) None
+        +isOverdue() bool
+    }
+
+    class User {
+        +uid: str
+        +name: str
+        +phoneNumber: str
+        +timezone: str
+        +pets: List[Pet]
+        +addPet(pet) None
+        +removePet(petId) None
+        +getPet(petId) Pet
+        +getUpcomingPetTasks(days) List
+    }
+
+    class PetTaskScheduler {
+        -_tasks: Dict[str, PetTask]
+        +createTaskForPet(pet, task) bool
+        +detectPetTaskConflicts(pet, candidate) List
+        +warnConflict(candidate) str
+        +autoScheduleRecurringTasks(pet, windowDays) List
+        +getPetAgenda(pet, day) List
+        +sort_by_time(tasks) List
+        +sort_by_completion(tasks) List
+        +sort_by_pet_name(tasks, pets) List
+        +completeTask(pet, taskId, completedAt) PetTask
+        +skipTask(taskId, reason) bool
+    }
+
+    User "1" *-- "*" Pet : owns
+    Pet "1" *-- "*" PetTask : owns
+    PetTask --> TaskStatus : uses
+    PetTaskScheduler o-- "*" PetTask : tracks via _tasks
+    PetTaskScheduler ..> Pet : depends on

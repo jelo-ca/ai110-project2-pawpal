@@ -33,6 +33,21 @@ The PawPal+ app now includes a smarter scheduling system with the following new 
 - **Analytics and Insights**: Tracks task completion rates and provides insights to help users optimize their pet care routines.
 - **Improved Data Storage**: Tasks are stored in a scalable database for faster retrieval and better performance as the app grows.
 
+## Features
+
+PawPal+ includes the following advanced features to assist pet owners in managing their pet care tasks efficiently:
+
+- **Sorting by Time**: Tasks are automatically sorted by their scheduled time to ensure a clear and organized daily agenda.
+- **Priority-Based Scheduling**: High-priority tasks are scheduled first, ensuring that critical care needs are met promptly.
+- **Conflict Warnings**: The system detects overlapping tasks for the same pet and provides warnings, allowing users to resolve conflicts.
+- **Daily Recurrence**: Recurring tasks are automatically scheduled based on user-defined rules, such as daily or weekly intervals.
+- **Task Rescheduling**: Users can easily reschedule tasks, and the system adjusts the agenda dynamically.
+- **Reminder Notifications**: Customizable reminders are sent to ensure tasks are completed on time.
+- **Task Validation**: Tasks are validated against pet profiles to ensure compatibility with the pet's care needs.
+- **Analytics and Insights**: Provides insights into task completion rates and pet care trends to help users optimize routines.
+
+These features make PawPal+ a reliable and intelligent assistant for managing pet care effectively.
+
 ## Getting started
 
 ### Setup

@@ -148,15 +148,46 @@ if st.button("Add task"):
         reminderMinutesBefore=15,
         isRecurring=False,
     )
+    conflict_warning = scheduler.warnConflict(pet_task)
     scheduler.createTaskForPet(pet, pet_task)
     st.session_state.tasks.append(
         {"title": task_title, "duration_minutes": int(duration), "priority": priority}
     )
     save_tasks(st.session_state.tasks)
+    if conflict_warning:
+        st.warning(conflict_warning)
+    else:
+        st.success(f"Task '{task_title}' added successfully.")
 
-if st.session_state.tasks:
-    st.write("Current tasks:")
-    st.table(st.session_state.tasks)
+PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+PRIORITY_BADGE = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+STATUS_BADGE = {TaskStatus.PENDING: "⏳", TaskStatus.COMPLETED: "✅", TaskStatus.SKIPPED: "⏭️"}
+
+if pet.tasks:
+    sort_option = st.radio(
+        "Sort tasks by",
+        ["Start Time", "Status", "Priority"],
+        horizontal=True,
+    )
+
+    if sort_option == "Start Time":
+        sorted_tasks = scheduler.sort_by_time(pet.tasks)
+    elif sort_option == "Status":
+        sorted_tasks = scheduler.sort_by_completion(pet.tasks)
+    else:
+        sorted_tasks = sorted(pet.tasks, key=lambda t: PRIORITY_ORDER.get(t.priority, 99))
+
+    rows = [
+        {
+            "": STATUS_BADGE.get(t.status, ""),
+            "Task": t.title,
+            "Priority": f"{PRIORITY_BADGE.get(t.priority, '')} {t.priority}",
+            "Duration (min)": t.estimatedMinutes,
+            "Start": t.startAt.strftime("%H:%M"),
+        }
+        for t in sorted_tasks
+    ]
+    st.table(rows)
 else:
     st.info("No tasks yet. Add one above.")
 
@@ -169,19 +200,31 @@ if st.button("Generate schedule"):
     today = date.today()
     agenda = scheduler.getPetAgenda(pet, today)
     if agenda:
-        st.success(f"Schedule for {pet.name} ({user.name}) — {today}")
-        for t in agenda:
-            st.markdown(f"- **{t.title}** | {t.estimatedMinutes} min | priority: {t.priority}")
+        sorted_agenda = scheduler.sort_by_time(agenda)
+        st.success(f"Schedule for {pet.name} ({user.name}) — {today} | {len(sorted_agenda)} task(s)")
+
+        conflicts_found = False
+        for t in sorted_agenda:
+            warn = scheduler.warnConflict(t)
+            if warn:
+                st.warning(warn)
+                conflicts_found = True
+
+        if not conflicts_found:
+            st.success("No scheduling conflicts detected.")
+
+        agenda_rows = [
+            {
+                "": STATUS_BADGE.get(t.status, ""),
+                "Task": t.title,
+                "Priority": f"{PRIORITY_BADGE.get(t.priority, '')} {t.priority}",
+                "Start": t.startAt.strftime("%H:%M"),
+                "End": t.endAt.strftime("%H:%M"),
+                "Duration (min)": t.estimatedMinutes,
+                "Status": t.status.name,
+            }
+            for t in sorted_agenda
+        ]
+        st.table(agenda_rows)
     else:
-        st.warning(
-            "Not implemented yet. Next step: create your scheduling logic (classes/functions) and call it here."
-        )
-        st.markdown(
-            """
-Suggested approach:
-1. Design your UML (draft).
-2. Create class stubs (no logic).
-3. Implement scheduling behavior.
-4. Connect your scheduler here and display results.
-"""
-        )
+        st.warning(f"No tasks scheduled for {pet.name} today ({today}).")
