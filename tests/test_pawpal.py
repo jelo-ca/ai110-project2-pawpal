@@ -366,3 +366,147 @@ class TestSchedulerEdgeCases:
             scheduler.createTaskForPet(pet, t)
         assert len(pet.tasks) == 1_000
         assert len(scheduler._tasks) == 1_000
+
+
+# --- Recurring Task Spawn on Completion ---
+
+from datetime import timedelta
+
+
+def make_recurring_task(uid="task-r", pet_id="pet-1", rule="daily"):
+    base = datetime(2026, 3, 26, 8, 0, 0)
+    return PetTask(
+        uid=uid, petId=pet_id, title="Morning Meal", careType="feeding",
+        instructions="Serve kibble.", dueAt=base, startAt=base,
+        endAt=base + timedelta(minutes=10), estimatedMinutes=10,
+        status=TaskStatus.PENDING, priority="high", reminderMinutesBefore=5,
+        isRecurring=True, recurrenceRule=rule,
+    )
+
+
+class TestSchedulerCompleteTaskRecurring:
+    def _setup(self, rule="daily"):
+        scheduler = PetTaskScheduler()
+        pet = make_pet()
+        task = make_recurring_task(rule=rule)
+        scheduler.createTaskForPet(pet, task)
+        return scheduler, pet, task
+
+    # --- daily recurrence ---
+
+    def test_recurring_daily_returns_new_task(self):
+        scheduler, pet, task = self._setup("daily")
+        new_task = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert new_task is not None
+
+    def test_recurring_daily_new_task_is_pending(self):
+        scheduler, pet, task = self._setup("daily")
+        new_task = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert new_task.status == TaskStatus.PENDING
+
+    def test_recurring_daily_next_due_is_plus_one_day(self):
+        scheduler, pet, task = self._setup("daily")
+        original_due = task.dueAt
+        new_task = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert new_task.dueAt == original_due + timedelta(days=1)
+
+    def test_recurring_daily_duration_preserved(self):
+        scheduler, pet, task = self._setup("daily")
+        original_duration = task.endAt - task.startAt
+        new_task = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert new_task.endAt - new_task.startAt == original_duration
+
+    def test_recurring_daily_new_task_added_to_pet(self):
+        scheduler, pet, task = self._setup("daily")
+        new_task = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert new_task in pet.tasks
+
+    def test_recurring_daily_new_task_registered_in_scheduler(self):
+        scheduler, pet, task = self._setup("daily")
+        new_task = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert new_task.uid in scheduler._tasks
+
+    def test_recurring_daily_original_marked_completed(self):
+        scheduler, pet, task = self._setup("daily")
+        scheduler.completeTask(pet, task.uid, datetime.now())
+        assert task.status == TaskStatus.COMPLETED
+
+    def test_recurring_daily_next_due_at_updated_on_original(self):
+        scheduler, pet, task = self._setup("daily")
+        original_due = task.dueAt
+        scheduler.completeTask(pet, task.uid, datetime.now())
+        assert task.nextDueAt == original_due + timedelta(days=1)
+
+    def test_recurring_daily_new_task_has_unique_uid(self):
+        scheduler, pet, task = self._setup("daily")
+        new_task = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert new_task.uid != task.uid
+
+    def test_recurring_daily_new_task_inherits_metadata(self):
+        scheduler, pet, task = self._setup("daily")
+        new_task = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert new_task.title == task.title
+        assert new_task.careType == task.careType
+        assert new_task.petId == task.petId
+        assert new_task.recurrenceRule == task.recurrenceRule
+        assert new_task.isRecurring is True
+
+    # --- weekly recurrence ---
+
+    def test_recurring_weekly_returns_new_task(self):
+        scheduler, pet, task = self._setup("weekly")
+        new_task = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert new_task is not None
+
+    def test_recurring_weekly_next_due_is_plus_seven_days(self):
+        scheduler, pet, task = self._setup("weekly")
+        original_due = task.dueAt
+        new_task = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert new_task.dueAt == original_due + timedelta(weeks=1)
+
+    # --- non-recurring task ---
+
+    def test_non_recurring_returns_none(self):
+        scheduler = PetTaskScheduler()
+        pet = make_pet()
+        task = make_task()  # isRecurring=False
+        scheduler.createTaskForPet(pet, task)
+        result = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert result is None
+
+    def test_non_recurring_still_marks_completed(self):
+        scheduler = PetTaskScheduler()
+        pet = make_pet()
+        task = make_task()
+        scheduler.createTaskForPet(pet, task)
+        scheduler.completeTask(pet, task.uid, datetime.now())
+        assert task.status == TaskStatus.COMPLETED
+
+    def test_non_recurring_no_new_task_added(self):
+        scheduler = PetTaskScheduler()
+        pet = make_pet()
+        task = make_task()
+        scheduler.createTaskForPet(pet, task)
+        count_before = len(pet.tasks)
+        scheduler.completeTask(pet, task.uid, datetime.now())
+        assert len(pet.tasks) == count_before
+
+    # --- unknown recurrence rule ---
+
+    def test_unknown_rule_returns_none(self):
+        scheduler, pet, task = self._setup("monthly")
+        result = scheduler.completeTask(pet, task.uid, datetime.now())
+        assert result is None
+
+    def test_unknown_rule_still_marks_completed(self):
+        scheduler, pet, task = self._setup("monthly")
+        scheduler.completeTask(pet, task.uid, datetime.now())
+        assert task.status == TaskStatus.COMPLETED
+
+    # --- invalid task id ---
+
+    def test_invalid_task_id_returns_none(self):
+        scheduler = PetTaskScheduler()
+        pet = make_pet()
+        result = scheduler.completeTask(pet, "nonexistent-id", datetime.now())
+        assert result is None
