@@ -79,3 +79,38 @@ for pet in owner.pets:
         print(f"    {task.instructions}")
 
 print(f"\n{'=' * 50}\n")
+
+# --- sort_by_time ---
+all_tasks = [t for pet in owner.pets for t in pet.tasks]
+
+print("=" * 50)
+print("  sort_by_time()")
+print("=" * 50)
+for task in scheduler.sort_by_time(all_tasks):
+    pet_name = owner.getPet(task.petId).name
+    print(f"  {task.startAt.strftime('%I:%M %p')}  [{pet_name}]  {task.title}")
+
+print()
+
+# --- sort_by_completion ---
+# Mark a couple tasks complete/skipped so the sort is visible
+tasks[0].status = TaskStatus.COMPLETED   # Simba – Weight Control Meal
+tasks[4].status = TaskStatus.SKIPPED     # Kayne  – Litter Box Clean
+
+print("=" * 50)
+print("  sort_by_completion()  (PENDING > COMPLETED > SKIPPED)")
+print("=" * 50)
+for task in scheduler.sort_by_completion(all_tasks):
+    pet_name = owner.getPet(task.petId).name
+    print(f"  [{task.status.name:<9}]  [{pet_name}]  {task.title}")
+
+print()
+
+# --- sort_by_pet_name ---
+print("=" * 50)
+print("  sort_by_pet_name()")
+print("=" * 50)
+for task in scheduler.sort_by_pet_name(all_tasks, owner.pets):
+    print(f"  [{owner.getPet(task.petId).name}]  {task.title}")
+
+print(f"\n{'=' * 50}\n")
