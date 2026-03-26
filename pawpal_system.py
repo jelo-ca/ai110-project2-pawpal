@@ -233,6 +233,10 @@ class PetTaskScheduler:
         """Returns all tasks for a pet on the provided day."""
         return [t for t in pet.tasks if t.dueAt.date() == day]
 
+    def sort_by_time(self, tasks: List[PetTask]) -> List[PetTask]:
+        """Returns tasks sorted by startAt time."""
+        return sorted(tasks, key=lambda t: t.startAt)
+
     def skipTask(self, taskId: str, reason: str) -> bool:
         """Skips a task with a reason."""
         task = self._tasks.get(taskId)
