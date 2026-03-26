@@ -74,10 +74,11 @@ Another realization I had was the designation between a task app and a "Pet" tas
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+The constraints for the scheduler consisted of Time Windows, Task Status, Priority, and Recurrence. I chose these as the app's goal is to organize tasks to help a user be more efficient at executing them. I believe these are the minimum information needed to see, know, and do tasks while also having them as sortable attributes for the UI.
+
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+Overlapped tasks are only seen per pet. Cross pet overlap is checked only by their start time. Its not much of a hard fix but it does save effort on checking each pets task interval to ensure that another pet's new task wont conflict. Another solution could be added where a collection of times could be used and a simple start end algorithm could be implemented. This will probably be the next improvement for this feature.
 
 ---
 
@@ -85,13 +86,13 @@ Another realization I had was the designation between a task app and a "Pet" tas
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+It was extremely useful in generating code for algorithms I had prior knowledge on. Python's sort is the base level of this but to ask it and describe how the algorithm I had in mind works was were it excelled at its job. Asking the agents to refactor huge chunks of code also showed its usefulness in today's engineering workflow.
+
+The prompts I used usually involved the solution itself to the problem. If I didnt have the solution, I would ask how things worked and go back and forth on the directions I could take finding a solution.
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+I declined times where it created tests using unittest rather than pytest. I adjusted project structure multiple times as well during development and it sometimes had a hard time locating new file locations causing it to create new files. I was also careful with its implementation of class methods as some attributes were built to be strings initially (by AI) but I decided to change them to ENUMs instead for better readability.
 
 ---
 
@@ -99,13 +100,11 @@ Another realization I had was the designation between a task app and a "Pet" tas
 
 **a. What you tested**
 
-- What behaviors did you test?
-- Why were these tests important?
+Task addition, completion, recurring, conflict detection. These are the main interactable features used in the App. The backend, data initialization, could also be tested but those are simple "if put in this, out put this". I focused on the algorithmic methods that could cause funky behavior if one line is out of place.
 
 **b. Confidence**
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+I'm pretty confident in the ability of the app and all its features. The only thing I didn't test for is for when a reoccuring task is made BUT a different task is set on the time its planned to reoccur. This could be fixed by automatically adjusting it of offsetting it when it happens. But other than that, the main features work as intended and tested.
 
 ---
 
@@ -113,12 +112,12 @@ Another realization I had was the designation between a task app and a "Pet" tas
 
 **a. What went well**
 
-- What part of this project are you most satisfied with?
+The whole system itself. Its a simple and working system made e2e. Its always satisfying to finish a project made from almost scratch.
 
 **b. What you would improve**
 
-- If you had another iteration, what would you improve or redesign?
+Probably the techstack. I think this project has great potential as a useful app in the real world. Upgrading its techstack to be more deployable could potentially launch it as a proper app with users.
 
 **c. Key takeaway**
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+Planning is the most important step, 2nd to that is adjusting when the plan fails. The initial plan was too simple and more and more features started adding up BUT the initial plan was the foundation of everything that was made. Its better to start that journey with a rough map rather than walking towards a random direction.
