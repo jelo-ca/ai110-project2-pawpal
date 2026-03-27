@@ -1,0 +1,58 @@
+[
+  {
+    "title": "Morning walk",
+    "care_type": "feeding",
+    "duration_minutes": 20,
+    "start_at": "2026-03-28T17:24:00",
+    "due_at": "2026-03-28T18:54:00",
+    "priority": "medium",
+    "user_importance": 4,
+    "instructions": "",
+    "reminder_minutes": 15,
+    "is_recurring": false,
+    "pet_id": "pet-1",
+    "owner_id": "user-1"
+  },
+  {
+    "title": "Morning walk",
+    "care_type": "feeding",
+    "duration_minutes": 20,
+    "start_at": "2026-03-26T17:33:00",
+    "due_at": "2026-03-26T19:03:00",
+    "priority": "high",
+    "user_importance": 3,
+    "instructions": "",
+    "reminder_minutes": 15,
+    "is_recurring": false,
+    "pet_id": "pet-1",
+    "owner_id": "user-1"
+  },
+  {
+    "title": "Morning walk",
+    "care_type": "feeding",
+    "duration_minutes": 20,
+    "start_at": "2026-03-26T17:36:00",
+    "due_at": "2026-03-26T19:06:00",
+    "priority": "high",
+    "user_importance": 3,
+    "instructions": "",
+    "reminder_minutes": 15,
+    "is_recurring": false,
+    "pet_id": "pet-1",
+    "owner_id": "user-1"
+  },
+  {
+    "title": "Morning walk",
+    "care_type": "feeding",
+    "duration_minutes": 20,
+    "start_at": "2026-03-27T17:36:00",
+    "due_at": "2026-03-27T19:06:00",
+    "priority": "low",
+    "user_importance": 3,
+    "instructions": "",
+    "reminder_minutes": 15,
+    "is_recurring": false,
+    "pet_id": "pet-1",
+    "owner_id": "user-1"
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "uid": "user-1",
+    "name": "Bey",
+    "pets": [
+      {
+        "uid": "pet-1",
+        "name": "Simba",
+        "species": "dog"
+      }
+    ]
+  }
+]
