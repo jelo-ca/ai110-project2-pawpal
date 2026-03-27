@@ -230,8 +230,17 @@ if "tasks" not in st.session_state:
 # Load tasks into scheduler once per session
 if "tasks_loaded" not in st.session_state:
     st.session_state.tasks_loaded = True
+    needs_save = False
     now = datetime.now()
     for t in st.session_state.tasks:
+        # Migrate older tasks that have no uid
+        if "uid" not in t:
+            t["uid"] = str(uuid.uuid4())
+            needs_save = True
+        # Migrate older tasks that have no status
+        if "status" not in t:
+            t["status"] = TaskStatus.PENDING.name
+            needs_save = True
         # Migrate older tasks that have no pet_id to the default first pet
         pet_id = t.get("pet_id", "pet-1")
         pet_obj = st.session_state.pet_objects.get(pet_id)
@@ -246,8 +255,9 @@ if "tasks_loaded" not in st.session_state:
             )
         saved_start = datetime.fromisoformat(t["start_at"]) if "start_at" in t else now
         saved_due_dt = datetime.fromisoformat(t["due_at"]) if "due_at" in t else now
+        saved_status = TaskStatus[t.get("status", "PENDING")]
         pet_task = PetTask(
-            uid=str(uuid.uuid4()),
+            uid=t["uid"],
             petId=pet_id,
             title=t["title"],
             careType=t.get("care_type", "general"),
@@ -256,13 +266,15 @@ if "tasks_loaded" not in st.session_state:
             startAt=saved_start,
             endAt=saved_start + timedelta(minutes=t["duration_minutes"]),
             estimatedMinutes=t["duration_minutes"],
-            status=TaskStatus.PENDING,
+            status=saved_status,
             priority=t["priority"],
             priority_factors=pf,
             reminderMinutesBefore=t.get("reminder_minutes", 15),
             isRecurring=t.get("is_recurring", False),
         )
         st.session_state.scheduler.createTaskForPet(pet_obj, pet_task)
+    if needs_save:
+        save_tasks(st.session_state.tasks)
 
 # ── Pet & Owner selection ───────────────────────────────────────────────────────
 st.subheader("Pet & Owner")
@@ -500,6 +512,7 @@ with tab_add:
                 conflict_warning = scheduler.warnConflict(pet_task)
                 scheduler.createTaskForPet(pet, pet_task)
                 st.session_state.tasks.append({
+                    "uid": pet_task.uid,
                     "title": task_title,
                     "care_type": care_type,
                     "duration_minutes": int(duration),
@@ -510,6 +523,7 @@ with tab_add:
                     "instructions": instructions,
                     "reminder_minutes": int(reminder),
                     "is_recurring": is_recurring,
+                    "status": TaskStatus.PENDING.name,
                     "pet_id": pet.uid,
                     "owner_id": st.session_state.selected_user_uid,
                 })
@@ -546,6 +560,11 @@ with tab_tasks:
             if t.status != TaskStatus.COMPLETED:
                 if st.button("✓ Mark complete", key=f"complete_{t.uid}"):
                     scheduler.completeTask(pet, t.uid, datetime.now())
+                    for saved in st.session_state.tasks:
+                        if saved.get("uid") == t.uid:
+                            saved["status"] = TaskStatus.COMPLETED.name
+                            break
+                    save_tasks(st.session_state.tasks)
                     st.rerun()
     else:
         st.info("No tasks yet. Head to Add Task to get started.")

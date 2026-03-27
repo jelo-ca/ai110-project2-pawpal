@@ -11,7 +11,9 @@
     "reminder_minutes": 15,
     "is_recurring": false,
     "pet_id": "pet-1",
-    "owner_id": "user-1"
+    "owner_id": "user-1",
+    "uid": "2a0b901c-df2b-4250-ad5d-3857befcccfc",
+    "status": "COMPLETED"
   },
   {
     "title": "Morning walk",
@@ -25,7 +27,9 @@
     "reminder_minutes": 15,
     "is_recurring": false,
     "pet_id": "pet-1",
-    "owner_id": "user-1"
+    "owner_id": "user-1",
+    "uid": "ec8876a0-ba99-452c-b092-77089e0c339d",
+    "status": "COMPLETED"
   },
   {
     "title": "Morning walk",
@@ -39,7 +43,9 @@
     "reminder_minutes": 15,
     "is_recurring": false,
     "pet_id": "pet-1",
-    "owner_id": "user-1"
+    "owner_id": "user-1",
+    "uid": "bfd569af-68f1-4183-aaa0-ad82eebe13d9",
+    "status": "COMPLETED"
   },
   {
     "title": "Morning walk",
@@ -53,6 +59,8 @@
     "reminder_minutes": 15,
     "is_recurring": false,
     "pet_id": "pet-1",
-    "owner_id": "user-1"
+    "owner_id": "user-1",
+    "uid": "a0fa6b10-8e6a-442a-86c5-a1374798e45d",
+    "status": "COMPLETED"
   }
 ]
