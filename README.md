@@ -86,3 +86,9 @@ pytest
 ### Reliability Confidence Level
 
 I rate the reliability of the system at **4/5 stars**, based on the robustness of the implemented features and the comprehensive test coverage.
+
+### UI
+
+<a href="AddTask.png" target="_blank">
+<a href="MyTasks.png" target="_blank">
+<a href="DailySchedule.png" target="_blank">
