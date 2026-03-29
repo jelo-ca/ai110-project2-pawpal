@@ -109,6 +109,14 @@ class Pet:
                 return True
         return False
 
+    def removeTask(self, taskId: str) -> bool:
+        """Removes a task from this pet's task list by uid."""
+        for i, task in enumerate(self.tasks):
+            if task.uid == taskId:
+                self.tasks.pop(i)
+                return True
+        return False
+
     def getDueTasks(self, windowStart: datetime, windowEnd: datetime) -> List["PetTask"]:
         """Returns tasks due in the provided time window."""
         return [t for t in self.tasks if windowStart <= t.dueAt <= windowEnd]

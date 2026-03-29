@@ -83,6 +83,10 @@ st.markdown("""
         font-family: 'Mali', sans-serif !important;
         border-color: #b2967d !important;
     }
+    input:disabled {
+        -webkit-text-fill-color: #4a342a !important;
+        opacity: 1 !important;
+    }
     [data-baseweb="select"] * {
         background-color: #d7c9b8 !important;
         color: #4a342a !important;
@@ -181,6 +185,59 @@ st.markdown("""
         font-size: 0.85em !important;
         background-color: #c4a285 !important;
         margin-bottom: 10px !important;
+    }
+
+    /* Delete button: stretch column to row height, remove inner gaps */
+    div[data-testid="stHorizontalBlock"]:has(.task-card) {
+        align-items: stretch !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.task-card) > [data-testid="column"]:first-child {
+        padding-right: 0 !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.task-card) > [data-testid="column"]:last-child {
+        padding-left: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.task-card) > [data-testid="column"]:last-child > div,
+    div[data-testid="stHorizontalBlock"]:has(.task-card) > [data-testid="column"]:last-child .stButton {
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Delete button: brown background, flat left corners, fills full height */
+    div[data-testid="stHorizontalBlock"]:has(.task-card) > [data-testid="column"]:last-child .stButton > button {
+        background-color: #b2967d !important;
+        color: #F5F1EA !important;
+        border: none !important;
+        border-radius: 0 8px 8px 0 !important;
+        flex: 1 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 10px !important;
+        font-size: 1.1em !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.task-card) > [data-testid="column"]:last-child .stButton > button:hover {
+        background-color: #7d5a44 !important;
+        color: #F5F1EA !important;
+    }
+
+    /* Card in delete row: flat right corners */
+    div[data-testid="stHorizontalBlock"]:has(.task-card) .task-card {
+        border-radius: 8px 0 0 8px !important;
+        margin-bottom: 10px !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.task-card) .task-card-actionable {
+        border-radius: 8px 0 0 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    /* Mark-complete button in delete row: flat right corner */
+    div[data-testid="stHorizontalBlock"]:has(.task-card-actionable) .element-container:has(.task-card-actionable) + .element-container button {
+        border-radius: 0 0 0 8px !important;
+        margin-bottom: 0 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -368,9 +425,8 @@ with col_spc:
     if not adding_pet and current_user_data and st.session_state.selected_pet_uid:
         pet_d = next((p for p in current_user_data["pets"] if p["uid"] == st.session_state.selected_pet_uid), None)
         if pet_d:
-            st.selectbox("Species", ["dog", "cat", "other"],
-                         index=["dog", "cat", "other"].index(pet_d.get("species", "dog")),
-                         disabled=True, key="species_display")
+            st.text_input("Species", value=pet_d.get("species", "dog"),
+                          disabled=True, key="species_display")
 
 st.divider()
 
@@ -383,6 +439,16 @@ owner_name: str = current_user_data["name"] if current_user_data else "Unknown"
 # ── Priority helpers ────────────────────────────────────────────────────────────
 PRIORITY_BADGE = {"critical": "🚨", "high": "🔴", "medium": "🟡", "low": "🟢"}
 STATUS_BADGE = {TaskStatus.PENDING: "⏳", TaskStatus.COMPLETED: "✅", TaskStatus.SKIPPED: "⏭️"}
+CARE_EMOJI = {
+    "feeding":    "🍽️",
+    "grooming":   "✂️",
+    "exercise":   "🏃",
+    "hygiene":    "🧹",
+    "medication": "💊",
+    "checkup":    "🩺",
+    "general":    "📋",
+    "other":      "📝",
+}
 
 
 def _priority_cell(t: PetTask) -> str:
@@ -401,11 +467,13 @@ def _status_label(t: PetTask) -> str:
 
 def _render_task_card(t: PetTask) -> None:
     status = STATUS_BADGE.get(t.status, "")
+    care_icon = CARE_EMOJI.get(t.careType.lower(), "📋")
     card_class = "task-card" + (" task-card-actionable" if t.status != TaskStatus.COMPLETED else "")
     st.markdown(f"""
     <div class="{card_class}">
         <div class="task-title">{status} {t.title}</div>
         <div class="task-meta">
+            {care_icon} {t.careType} &nbsp;·&nbsp;
             {_priority_cell(t)} &nbsp;·&nbsp;
             {t.startAt.strftime("%b %d")} &nbsp;·&nbsp;
             Start: <strong>{t.startAt.strftime("%H:%M")}</strong> &nbsp;·&nbsp;
@@ -418,10 +486,12 @@ def _render_task_card(t: PetTask) -> None:
 
 def _render_schedule_card(t: PetTask) -> None:
     status = STATUS_BADGE.get(t.status, "")
+    care_icon = CARE_EMOJI.get(t.careType.lower(), "📋")
     st.markdown(f"""
     <div class="task-card">
         <div class="task-title">{status} {t.title}</div>
         <div class="task-meta">
+            {care_icon} {t.careType} &nbsp;·&nbsp;
             {_priority_cell(t)} &nbsp;·&nbsp;
             {t.startAt.strftime("%b %d")} &nbsp;·&nbsp;
             {t.startAt.strftime("%H:%M")} → {t.endAt.strftime("%H:%M")} &nbsp;·&nbsp;
@@ -556,14 +626,24 @@ with tab_tasks:
             sorted_tasks = scheduler.sort_by_priority(pet.tasks, weights)
 
         for t in sorted_tasks:
-            _render_task_card(t)
-            if t.status != TaskStatus.COMPLETED:
-                if st.button("✓ Mark complete", key=f"complete_{t.uid}"):
-                    scheduler.completeTask(pet, t.uid, datetime.now())
-                    for saved in st.session_state.tasks:
-                        if saved.get("uid") == t.uid:
-                            saved["status"] = TaskStatus.COMPLETED.name
-                            break
+            col_card, col_del = st.columns([12, 1])
+            with col_card:
+                _render_task_card(t)
+                if t.status != TaskStatus.COMPLETED:
+                    if st.button("✓ Mark complete", key=f"complete_{t.uid}"):
+                        scheduler.completeTask(pet, t.uid, datetime.now())
+                        for saved in st.session_state.tasks:
+                            if saved.get("uid") == t.uid:
+                                saved["status"] = TaskStatus.COMPLETED.name
+                                break
+                        save_tasks(st.session_state.tasks)
+                        st.rerun()
+            with col_del:
+                if st.button("🗑", key=f"delete_{t.uid}"):
+                    pet.removeTask(t.uid)
+                    st.session_state.tasks = [
+                        s for s in st.session_state.tasks if s.get("uid") != t.uid
+                    ]
                     save_tasks(st.session_state.tasks)
                     st.rerun()
     else:
