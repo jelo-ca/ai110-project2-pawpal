@@ -1,16 +1,96 @@
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 from datetime import date, datetime
 from pawpal_system import Pet, PetTask, User, PetTaskScheduler, TaskStatus
 
+# ── Optional pretty-print dependencies (graceful fallback if not installed) ──────
+try:
+    from colorama import Fore, Style, init as colorama_init
+    colorama_init(autoreset=True)
+    HAS_COLOR = True
+except ImportError:
+    HAS_COLOR = False
+    class _Noop:
+        def __getattr__(self, _): return ""
+    Fore = Style = _Noop()
+
+try:
+    from tabulate import tabulate as _tabulate
+    HAS_TABULATE = True
+except ImportError:
+    HAS_TABULATE = False
+
+# ── Emoji / badge maps ───────────────────────────────────────────────────────────
+CARE_EMOJI = {
+    "feeding":    "🍽️  feeding",
+    "grooming":   "✂️  grooming",
+    "exercise":   "🏃 exercise",
+    "hygiene":    "🧹 hygiene",
+    "medication": "💊 medication",
+    "checkup":    "🩺 checkup",
+    "general":    "📋 general",
+    "other":      "📝 other",
+}
+
+STATUS_BADGE = {
+    TaskStatus.PENDING:   "⏳ PENDING",
+    TaskStatus.COMPLETED: "✅ DONE",
+    TaskStatus.SKIPPED:   "⏭️  SKIPPED",
+}
+
+PRIORITY_BADGE = {
+    "critical": "🚨 critical",
+    "high":     "🔴 high",
+    "medium":   "🟡 medium",
+    "low":      "🟢 low",
+}
+
+# ── Helper formatters ────────────────────────────────────────────────────────────
+def _care_cell(care_type: str) -> str:
+    return CARE_EMOJI.get(care_type.lower(), f"📋 {care_type}")
+
+
+def _priority_cell(priority: str) -> str:
+    return PRIORITY_BADGE.get(priority.lower(), priority)
+
+
+def _status_cell(status: TaskStatus) -> str:
+    return STATUS_BADGE.get(status, status.name)
+
+
+def _section(title: str) -> None:
+    bar = "─" * (len(title) + 2)
+    print(f"\n{Fore.CYAN}{Style.BRIGHT}┌{bar}┐")
+    print(f"│ {title} │")
+    print(f"└{bar}┘{Style.RESET_ALL}")
+
+
+def _print_table(rows: list, headers: list) -> None:
+    if HAS_TABULATE:
+        print(_tabulate(rows, headers=headers, tablefmt="rounded_outline"))
+    else:
+        # plain fallback
+        widths = [max(len(str(r[i])) for r in ([headers] + rows)) for i in range(len(headers))]
+        fmt = "  ".join(f"{{:<{w}}}" for w in widths)
+        print(fmt.format(*headers))
+        print("  ".join("─" * w for w in widths))
+        for row in rows:
+            print(fmt.format(*[str(c) for c in row]))
+
+
+# ── Data setup ───────────────────────────────────────────────────────────────────
 today = date.today()
 now = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
 
 def make_time(hour: int, minute: int = 0) -> datetime:
     return now.replace(hour=hour, minute=minute)
 
-# Owner
+
 owner = User(uid="user-001", name="Bey", phoneNumber="555-0100", timezone="America/New_York")
 
-# Pets
 simba = Pet(uid="pet-001", name="Simba", animalProfileId="profile-cat",
             birthDate=date(2022, 4, 10), weightKg=6.8, medicalNotes="Overweight; vet recommends diet food.")
 kayne = Pet(uid="pet-002", name="Kayne", animalProfileId="profile-cat",
@@ -18,7 +98,6 @@ kayne = Pet(uid="pet-002", name="Kayne", animalProfileId="profile-cat",
 owner.addPet(simba)
 owner.addPet(kayne)
 
-# Tasks
 tasks = [
     PetTask(uid="task-001", petId="pet-001", title="Weight Control Meal", careType="feeding",
             instructions="Serve 1/4 cup of diet kibble. No treats.",
@@ -56,61 +135,74 @@ scheduler = PetTaskScheduler()
 for task in tasks:
     scheduler.createTaskForPet(owner.getPet(task.petId), task)
 
-# Print Today's Schedule
-print("=" * 50)
-print(f"  Today's Schedule — {today.strftime('%A, %B %d %Y')}")
-print(f"  Owner: {owner.name}")
-print("=" * 50)
+# ── Today's Schedule ─────────────────────────────────────────────────────────────
+_section(f"Today's Schedule — {today.strftime('%A, %B %d %Y')}  |  Owner: {owner.name}")
 
 for pet in owner.pets:
     agenda = scheduler.getPetAgenda(pet, today)
     age = pet.calculateAge(today)
-    print(f"\n  {pet.name}  ({age} yr old)  •  {pet.weightKg} kg")
+    print(f"\n{Fore.YELLOW}{Style.BRIGHT}  🐾 {pet.name}  ({age} yr)  ·  {pet.weightKg} kg{Style.RESET_ALL}")
     if pet.medicalNotes:
-        print(f"  Note: {pet.medicalNotes}")
-    print(f"  {'-' * 44}")
+        print(f"  {Fore.RED}⚕️  {pet.medicalNotes}{Style.RESET_ALL}")
     if not agenda:
         print("  No tasks scheduled for today.")
         continue
-    for task in sorted(agenda, key=lambda t: t.startAt):
-        time_range = f"{task.startAt.strftime('%I:%M %p')} – {task.endAt.strftime('%I:%M %p')}"
-        recur_tag = " [recurring]" if task.isRecurring else ""
-        print(f"  {time_range}  [{task.priority.upper()}]  {task.title}{recur_tag}")
-        print(f"    {task.instructions}")
+    rows = []
+    for t in sorted(agenda, key=lambda t: t.startAt):
+        time_range = f"{t.startAt.strftime('%I:%M %p')} – {t.endAt.strftime('%I:%M %p')}"
+        rows.append([
+            time_range,
+            _care_cell(t.careType),
+            t.title,
+            _priority_cell(t.priority),
+            "↩ recurring" if t.isRecurring else "—",
+            _status_cell(t.status),
+        ])
+    _print_table(rows, ["Time", "Care Type", "Task", "Priority", "Recurs", "Status"])
 
-print(f"\n{'=' * 50}\n")
-
-# --- sort_by_time ---
+# ── sort_by_time ──────────────────────────────────────────────────────────────────
 all_tasks = [t for pet in owner.pets for t in pet.tasks]
 
-print("=" * 50)
-print("  sort_by_time()")
-print("=" * 50)
-for task in scheduler.sort_by_time(all_tasks):
-    pet_name = owner.getPet(task.petId).name
-    print(f"  {task.startAt.strftime('%I:%M %p')}  [{pet_name}]  {task.title}")
+_section("sort_by_time()")
+rows = []
+for t in scheduler.sort_by_time(all_tasks):
+    pet_name = owner.getPet(t.petId).name
+    rows.append([
+        t.startAt.strftime("%I:%M %p"),
+        f"🐾 {pet_name}",
+        _care_cell(t.careType),
+        t.title,
+    ])
+_print_table(rows, ["Start Time", "Pet", "Care Type", "Task"])
 
-print()
-
-# --- sort_by_completion ---
+# ── sort_by_completion ────────────────────────────────────────────────────────────
 # Mark a couple tasks complete/skipped so the sort is visible
 tasks[0].status = TaskStatus.COMPLETED   # Simba – Weight Control Meal
 tasks[4].status = TaskStatus.SKIPPED     # Kayne  – Litter Box Clean
 
-print("=" * 50)
-print("  sort_by_completion()  (PENDING > COMPLETED > SKIPPED)")
-print("=" * 50)
-for task in scheduler.sort_by_completion(all_tasks):
-    pet_name = owner.getPet(task.petId).name
-    print(f"  [{task.status.name:<9}]  [{pet_name}]  {task.title}")
+_section("sort_by_completion()  (PENDING → COMPLETED → SKIPPED)")
+rows = []
+for t in scheduler.sort_by_completion(all_tasks):
+    pet_name = owner.getPet(t.petId).name
+    rows.append([
+        _status_cell(t.status),
+        f"🐾 {pet_name}",
+        _care_cell(t.careType),
+        t.title,
+    ])
+_print_table(rows, ["Status", "Pet", "Care Type", "Task"])
+
+# ── sort_by_pet_name ──────────────────────────────────────────────────────────────
+_section("sort_by_pet_name()")
+rows = []
+for t in scheduler.sort_by_pet_name(all_tasks, owner.pets):
+    pet_name = owner.getPet(t.petId).name
+    rows.append([
+        f"🐾 {pet_name}",
+        _care_cell(t.careType),
+        t.title,
+        _status_cell(t.status),
+    ])
+_print_table(rows, ["Pet", "Care Type", "Task", "Status"])
 
 print()
-
-# --- sort_by_pet_name ---
-print("=" * 50)
-print("  sort_by_pet_name()")
-print("=" * 50)
-for task in scheduler.sort_by_pet_name(all_tasks, owner.pets):
-    print(f"  [{owner.getPet(task.petId).name}]  {task.title}")
-
-print(f"\n{'=' * 50}\n")
