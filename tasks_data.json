@@ -1,18 +1,1 @@
-[
-  {
-    "uid": "a089ef17-d831-4a7b-8ac5-2ee1776b9abb",
-    "title": "walk",
-    "care_type": "feeding",
-    "duration_minutes": 20,
-    "start_at": "2026-03-28T00:10:00",
-    "due_at": "2026-03-28T01:40:00",
-    "priority": "critical",
-    "user_importance": 3,
-    "instructions": "",
-    "reminder_minutes": 15,
-    "is_recurring": false,
-    "status": "PENDING",
-    "pet_id": "pet-1",
-    "owner_id": "user-1"
-  }
-]
+[]
