@@ -89,6 +89,20 @@ I rate the reliability of the system at **4/5 stars**, based on the robustness o
 
 ### UI
 
-<a href="AddTask.png" target="_blank">
-<a href="MyTasks.png" target="_blank">
-<a href="DailySchedule.png" target="_blank">
+### UI Screenshots
+
+#### Add Task Screen
+
+![Add Task](AddTask.png)
+
+#### My Tasks Screen
+
+![My Tasks](MyTasks.png)
+
+#### Daily Schedule Screen
+
+![Daily Schedule](DailySchedule.png)
+
+### UML Diagram
+
+![UML Diagram](uml_final.png)
