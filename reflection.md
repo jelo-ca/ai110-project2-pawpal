@@ -121,3 +121,23 @@ Probably the techstack. I think this project has great potential as a useful app
 **c. Key takeaway**
 
 Planning is the most important step, 2nd to that is adjusting when the plan fails. The initial plan was too simple and more and more features started adding up BUT the initial plan was the foundation of everything that was made. Its better to start that journey with a rough map rather than walking towards a random direction.
+
+## 6. Prompt Comparison
+
+Copilot (GPT-4.1) vs Claude
+
+Prompt: plan a feature in scheduler that detects task conflicts for tasks scheduled at the same time. Make a lightweight conflict detection strategy that returns a warning
+
+### Copilot
+
+Copilot's suggested plan was very barebones with a rough outline of the conflict logic, ideas of integration, list of relevant files, and optional decisions that could be made. I found the optional decisions to be the most useful out of the whole plan as it introduced potential problems to the initial algorithm I had in mind.
+
+The proposed decisions to be made:
+
+- Should the warning be blocking (prevent scheduling) or advisory (just notify)? (Current plan: advisory)
+- Should the conflict check be per-pet, per-user, or global? (Current plan: per-pet or per-resource, as appropriate)
+- How should recurring or multi-day tasks be handled? (Current plan: only direct time overlaps are checked)
+
+### Claude
+
+I would say Claude's plan was more sophisticated as it introduced a "two-tier approach" where conflicts would be checked both at the pet class level and the scheduler itself. It explained the logic with text-based diagrams which helped me visualize the algorithm it was trying to implement and even laid out the methods it was planning to implement with its expected inputs and outputs. Lastly, Claude's plan took into account the tests that were already set, and it wrote its code ensuring that the tests would still pass even after the changes. Although I'd still introduce new edge cases with the new logic to ensure its not creating code only to appeal to the tests.
